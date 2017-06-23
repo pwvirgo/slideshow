@@ -1,13 +1,11 @@
 package slideshow;
 
 import javax.swing.*; 
-import java.io.*; 
 import java.awt.*; 
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage; 
 import java.util.logging.Logger;
-import javax.imageio.*; 
 
 // https://docs.oracle.com/javase/tutorial/2d/images/drawimage.html
 
@@ -43,20 +41,14 @@ public class Gui extends JPanel implements MouseListener
   //g.drawImage(image, 0, 0, new_width, new_height, null);
   //g.dispose();
 	
-	private static BufferedImage getImage() {
-		BufferedImage tmp;
-		try {
-      tmp = ImageIO.read(new File("/Users/pwv/a/photos/2015/20150913MarthasVineyard/P9140435.JPG")); 
-    } catch (IOException e) 
-    { 
-      tmp=null;
-    }
-		return tmp; 
-	}
+
 	
 	@Override
 	public void paintComponent(Graphics g) 
   { 
+		
+		setBackground(Color.black); // doesn;t work after resizing 
+		
 		int iW = image.getWidth();
 		int iH = image.getHeight();
 		int pW = this.getWidth();
@@ -66,6 +58,7 @@ public class Gui extends JPanel implements MouseListener
 		float iratio= (float) iW / iH;
 		float fratio= (float) pW / pH;
 		
+	
 		if (iratio > fratio)  // image is proportionally wider than panel
 		{
 			newW = pW;  // find the width to the fit the panel
@@ -77,16 +70,14 @@ public class Gui extends JPanel implements MouseListener
 		
     if (!g.drawImage(image, 0, 0, Math.round(newW), Math.round(newH), null))
 			 log.info("draw failed");	
-		
-		setBackground(Color.black);
   } 
 
-  public static void main(String [] args) 
+  public static void showSlides(Images images) 
   { 
     frame.add(new Gui());
     frame.setSize(500, 400); 
 		//frame.addComponentListener();
-		image=getImage();
+		image=images.getImage();
     frame.setVisible(true); 
   } 
 }
