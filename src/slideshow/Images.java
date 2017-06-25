@@ -16,14 +16,17 @@ import javax.imageio.ImageIO;
 public class Images {
 	static final Logger log = Logger.getLogger( "slideshow.Images" );
 	private File [] imgFiles;
-	private int [] playList;
-	private int PLAYLIST_LEN = 5;  // the length of the playlist
+	private final int playlistSize = 5;
+	private int [] playlist = new int[playlistSize];
+	private int playlistNext = 0; // index of next slot in playlist
+	private Random random = new Random();
+	
+  // the length of the playlist
 	
 	public Images(String directory) {
 		getFiles(new File(directory));
 		log.log(Level.INFO, "images: Found {0}image files in {1}",
 						new Object[]{imgFiles.length, directory});
-		playList = getPlayList(imgFiles.length, PLAYLIST_LEN);
 	}
 	// need to set up timer loop see this:
 	// http://www.javapractices.com/topic/TopicAction.do?Id=160
@@ -46,22 +49,20 @@ public class Images {
 	private void getFiles2(File dir, HashSet<File> tmp) {
 		File[] children = dir.listFiles(); // all files in directory or a single file
 		if (children !=null) for (File child : children) {
-			if (child.getName().toLowerCase().endsWith("jpg"))
-				tmp.add(child);
+			if (isImage(child)) tmp.add(child);
 			getFiles2(child, tmp);
 		}
 		imgFiles=tmp.toArray(new File [0]);
 	}
 	
-		/**
-	 * Create a Buffered image from a file
+	/**
+	 * Create a BufferedImage from a file
+	 * @param index the index of the file in ImgFiles
 	 * @return the Buffered image
 	 */
-	public BufferedImage getImage() {
-
+	public BufferedImage getImage(int index) {
 		BufferedImage buf;
-		File imgfile = imgFiles[playList[2]];
-		
+		File imgfile = imgFiles[index];
 		try {  buf = ImageIO.read(imgfile); } 
 		
 		catch (IOException e) {
@@ -72,12 +73,27 @@ public class Images {
 		return buf; 
 	}
 	
-	public static int [] getPlayList(int maxImg, int playlen) {
-		Random rand = new Random();
-		int [] ret = new int[playlen];
-		for (int j = 0; j <  playlen; j++){
-      ret[j] = rand.nextInt(maxImg);
-    }
-		return ret;
+	/**
+	 * get a random image and save the index of the image in the next 
+	 * slot in the playlist
+	 * 
+	 * side effect:  advances playlistNext to the next slot in playlist 
+	 * @return the image
+	 */
+	public BufferedImage getRandomImage() {
+		BufferedImage buf;
+		int ndx = playlistNext;
+		playlistNext = ++playlistNext % playlistSize;	
+		playlist[ndx] = random.nextInt(imgFiles.length);
+		return getImage(playlist[ndx]);
+	}
+	
+	/**
+	 * Is the file an image file?
+	 * @param file
+	 * @return true or false
+	 */
+	public static boolean isImage (File file) {
+		return file.getName().toLowerCase().endsWith("jpg");
 	}
 }

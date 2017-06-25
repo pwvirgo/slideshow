@@ -12,10 +12,11 @@ import java.util.logging.Logger;
 
 public class Slideshow {
 	static final Logger log = Logger.getLogger( "slideshow.SlideShow" );
-
+	static Gui gui = new Gui();
+	
 	public static void main(String[] args) {
 		String dir = args[0];
 		Images images = new Images(args[0]);
-		Gui.showSlides(images);
+		gui.showSlides(images);
 	}
 }

@@ -2,6 +2,8 @@ package slideshow;
 
 import javax.swing.*; 
 import java.awt.*; 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage; 
@@ -11,15 +13,22 @@ import java.util.logging.Logger;
 
 public class Gui extends JPanel implements MouseListener
 {
-	static final Logger log = Logger.getLogger( "slideshow.Gui2" );
-  private static BufferedImage image; 
-  private static final JFrame frame = new JFrame("Slipin an slidin");
-	private SlideMenu slideMenu = new SlideMenu(this);
+  private static BufferedImage	image;  // image being displayed
+  private static final JFrame		frame = new JFrame("Slipin an slidin");
+	private static Images					images;
+	static final Logger						log = Logger.getLogger( "slideshow.Gui2" );
+	private final SlideMenu				slideMenu = new SlideMenu(this);
+	protected Timer								timer1;  // timer for changing images
+
+	// potential user configurations
+	protected int									delay = 2000; // image display duration for in milliseconds 
 	
   public Gui () { 
 		super();
 		addMouseListener(this);
 		add(slideMenu);
+		timer1	= new Timer(delay, nextImage);
+		timer1.start();
 	}
 	
 	@Override public void mouseClicked(MouseEvent e) {
@@ -29,7 +38,7 @@ public class Gui extends JPanel implements MouseListener
 	}
 
 	@Override public void mousePressed(MouseEvent e) {}
-	@Override  public void mouseReleased(MouseEvent e) {}
+	@Override public void mouseReleased(MouseEvent e) {}
 	@Override public void mouseEntered(MouseEvent e) {}
 	@Override public void mouseExited(MouseEvent e) {}
 
@@ -71,13 +80,23 @@ public class Gui extends JPanel implements MouseListener
     if (!g.drawImage(image, 0, 0, Math.round(newW), Math.round(newH), null))
 			 log.info("draw failed");	
   } 
-
-  public static void showSlides(Images images) 
+	
+	
+  ActionListener nextImage = new ActionListener() {
+			@Override
+      public void actionPerformed(ActionEvent evt) {
+				image=images.getRandomImage();
+				repaint();
+      }
+  };
+	
+  public void showSlides(Images images) 
   { 
+		this.images=images;
     frame.add(new Gui());
     frame.setSize(500, 400); 
 		//frame.addComponentListener();
-		image=images.getImage();
+		image=images.getRandomImage();
     frame.setVisible(true); 
   } 
 }
