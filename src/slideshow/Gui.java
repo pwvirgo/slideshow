@@ -7,6 +7,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage; 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 // https://docs.oracle.com/javase/tutorial/2d/images/drawimage.html
@@ -16,24 +17,32 @@ public class Gui extends JPanel implements MouseListener
   private static BufferedImage	image;  // image being displayed
   private static final JFrame		frame = new JFrame("Slipin an slidin");
 	private static Images					images;
-	static final Logger						log = Logger.getLogger( "slideshow.Gui2" );
+	static final Logger						log = Logger.getLogger( "slideshow.Gui");
 	private final SlideMenu				slideMenu = new SlideMenu(this);
 	protected Timer								timer1;  // timer for changing images
 
 	// potential user configurations
-	protected int									delay = 2000; // image display duration for in milliseconds 
+	protected int									delay = 600000; // image display duration for in milliseconds 
 	
   public Gui () { 
 		super();
 		addMouseListener(this);
 		add(slideMenu);
-		timer1	= new Timer(delay, nextImage);
+		// there is a big problem with the swing timer! see the docs directory of this app 
+		// and keep this initial delay really big or the previous/next options will
+		// behave really badly!
+		timer1	= new Timer(6000000, timesUp);
+		timer1.setInitialDelay(300);
+		timer1.setDelay(delay);
+		
 		timer1.start();
+
+		log.setLevel(Level.FINER);
 	}
 	
 	@Override public void mouseClicked(MouseEvent e) {
-		log.info("clicked!");
 		//slideMenu.setVisible(true);
+		timer1.stop();
 		slideMenu.show(this, 20, 20);
 	}
 
@@ -49,8 +58,6 @@ public class Gui extends JPanel implements MouseListener
   //Graphics2D g = resizedImage.createGraphics();
   //g.drawImage(image, 0, 0, new_width, new_height, null);
   //g.dispose();
-	
-
 	
 	@Override
 	public void paintComponent(Graphics g) 
@@ -78,13 +85,20 @@ public class Gui extends JPanel implements MouseListener
 		}
 		
     if (!g.drawImage(image, 0, 0, Math.round(newW), Math.round(newH), null))
-			 log.info("draw failed");	
+			 log.warning("draw failed");	
   } 
 	
+	public void back() {
+		image=images.getPriorImage();
+		repaint();
+	}
 	
-  ActionListener nextImage = new ActionListener() {
+  ActionListener timesUp = new ActionListener() {
+			final Logger	log2 = Logger.getLogger( "slideshow.Gui");
+		
 			@Override
       public void actionPerformed(ActionEvent evt) {
+				log2.info("timesUp!" );
 				image=images.getRandomImage();
 				repaint();
       }

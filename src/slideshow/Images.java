@@ -16,9 +16,10 @@ import javax.imageio.ImageIO;
 public class Images {
 	static final Logger log = Logger.getLogger( "slideshow.Images" );
 	private File [] imgFiles;
-	private final int playlistSize = 5;
+	private final int playlistSize = 11;
 	private int [] playlist = new int[playlistSize];
 	private int playlistNext = 0; // index of next slot in playlist
+	private int currIndex = -1; // index of the current image in the playlist
 	private Random random = new Random();
 	
   // the length of the playlist
@@ -73,6 +74,24 @@ public class Images {
 		return buf; 
 	}
 	
+	public BufferedImage getPriorImage() {
+		log.info("getPriorImage!               playlist: " + showplaylist() +
+						" currIndex: " + currIndex);  
+		if (currIndex == 0) 
+			currIndex = playlistSize -1; // wrap to end of list
+		else currIndex = --currIndex;
+		log.info("getPriorImage!               RESET to: " + showplaylist() +
+						" currIndex: " + currIndex);  
+		return getImage(playlist[currIndex]);
+	}
+	
+	String showplaylist() {
+		StringBuilder s = new StringBuilder(11);
+		for (int j=0; j< playlistSize; j++) {
+			s.append(" [" + j + "]: " + playlist[j]);
+		}
+		return s.toString();
+	}
 	/**
 	 * get a random image and save the index of the image in the next 
 	 * slot in the playlist
@@ -82,10 +101,9 @@ public class Images {
 	 */
 	public BufferedImage getRandomImage() {
 		BufferedImage buf;
-		int ndx = playlistNext;
-		playlistNext = ++playlistNext % playlistSize;	
-		playlist[ndx] = random.nextInt(imgFiles.length);
-		return getImage(playlist[ndx]);
+		currIndex = ++currIndex % playlistSize;	
+		playlist[currIndex] = random.nextInt(imgFiles.length);
+		return getImage(playlist[currIndex]);
 	}
 	
 	/**
