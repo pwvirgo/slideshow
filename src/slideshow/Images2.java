@@ -13,18 +13,17 @@ import javax.imageio.ImageIO;
  *
  * @author pwv
  */
-public class Images {
-	static final Logger log = Logger.getLogger( "slideshow.Images" );
-	private File [] imgFiles;
-	private final int playlistSize = 11;
-	private int [] playlist = new int[playlistSize];
-	private int playlistNext = 0; // index of next slot in playlist
-	private int currIndex = -1; // index of the current image in the playlist
-	private Random random = new Random();
+public class Images2 {
+	static final Logger			log = Logger.getLogger( "slideshow.Images" );
+	private File []					imgFiles;
+	private final int				playlistSize = 11;
+	private final Fimage []	playlist = new Fimage[playlistSize];
+	private int							currIndex = -1; // index of the current image in the playlist
+	private Random					random = new Random();
 	
-  // the length of the playlist
+  
 	
-	public Images(String directory) {
+	public Images2 (String directory) {
 		getFiles(new File(directory));
 		log.log(Level.INFO, "images: Found {0}image files in {1}",
 						new Object[]{imgFiles.length, directory});
@@ -61,28 +60,36 @@ public class Images {
 	 * @param index the index of the file in ImgFiles
 	 * @return the Buffered image
 	 */
-	public BufferedImage getImage(int index) {
-		BufferedImage buf;
+	public Fimage getImage(int index) {
+		Fimage	fimage= new Fimage();
 		File imgfile = imgFiles[index];
-		try {  buf = ImageIO.read(imgfile); } 
-		
+		try {  
+			fimage.setImage(ImageIO.read(imgfile));
+			fimage.setFile(imgfile);
+		} 
 		catch (IOException e) {
 			log.log(Level.SEVERE, "images: error reading imageFile {0}",
 							imgfile.getAbsolutePath());
-			buf=null;
 		}
-		return buf; 
+		return fimage; 
 	}
 	
-	public BufferedImage getPriorImage() {
-		log.info("getPriorImage!               playlist: " + showplaylist() +
+	public Fimage getPriorImage() {
+		log.info("                             playlist: " + showplaylist() +
 						" currIndex: " + currIndex);  
-		if (currIndex == 0) 
-			currIndex = playlistSize -1; // wrap to end of list
-		else currIndex = --currIndex;
-		log.info("getPriorImage!               RESET to: " + showplaylist() +
+		
+		if (currIndex == 0) {
+			if (playlist[playlistSize - 1] != null) 
+				currIndex = playlistSize -1; // wrap to end of list
+			else log.warning("                    Prior image is null - NOT MOVING!");
+		}
+		
+		else if (playlist[currIndex -1] != null) 
+			currIndex = --currIndex;
+		
+		log.info("                             RESET to: " + showplaylist() +
 						" currIndex: " + currIndex);  
-		return getImage(playlist[currIndex]);
+		return playlist[currIndex];
 	}
 	
 	String showplaylist() {
@@ -99,11 +106,11 @@ public class Images {
 	 * side effect:  advances playlistNext to the next slot in playlist 
 	 * @return the image
 	 */
-	public BufferedImage getRandomImage() {
-		BufferedImage buf;
+	public Fimage getRandomImage() {
+		Fimage fimage;
 		currIndex = ++currIndex % playlistSize;	
-		playlist[currIndex] = random.nextInt(imgFiles.length);
-		return getImage(playlist[currIndex]);
+		playlist[currIndex] = getImage(random.nextInt(imgFiles.length));
+		return playlist[currIndex];
 	}
 	
 	/**
@@ -115,3 +122,4 @@ public class Images {
 		return file.getName().toLowerCase().endsWith("jpg");
 	}
 }
+

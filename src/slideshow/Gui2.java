@@ -12,11 +12,11 @@ import java.util.logging.Logger;
 
 // https://docs.oracle.com/javase/tutorial/2d/images/drawimage.html
 
-public class Gui extends JPanel implements MouseListener
+public class Gui2 extends JPanel implements MouseListener
 {
-  private static BufferedImage	image;  // image being displayed
+  private static Fimage					fimage;  // image being displayed
   private static final JFrame		frame = new JFrame("Slipin an slidin");
-	private static Images					images;
+	private static Images2				images;
 	static final Logger						log = Logger.getLogger( "slideshow.Gui");
 	private final SlideMenu				slideMenu = new SlideMenu(this);
 	protected Timer								timer1;  // timer for changing images
@@ -24,7 +24,7 @@ public class Gui extends JPanel implements MouseListener
 	// potential user configurations
 	protected int									delay = 600000; // image display duration for in milliseconds 
 	
-  public Gui () { 
+  public Gui2 () { 
 		super();
 		addMouseListener(this);
 		add(slideMenu);
@@ -64,9 +64,9 @@ public class Gui extends JPanel implements MouseListener
   { 
 		
 		setBackground(Color.black); // doesn;t work after resizing 
-		
-		int iW = image.getWidth();
-		int iH = image.getHeight();
+		frame.setTitle(fimage.getFile().getAbsolutePath());
+		int iW = fimage.getImage().getWidth();
+		int iH = fimage.getImage().getHeight();
 		int pW = this.getWidth();
 		int pH = this.getHeight();
 		float newW, newH;
@@ -84,12 +84,12 @@ public class Gui extends JPanel implements MouseListener
 			newW = iW *  ((float) pH / iH);  
 		}
 		
-    if (!g.drawImage(image, 0, 0, Math.round(newW), Math.round(newH), null))
+    if (!g.drawImage(fimage.getImage(), 0, 0, Math.round(newW), Math.round(newH), null))
 			 log.warning("draw failed");	
   } 
 	
 	public void back() {
-		image=images.getPriorImage();
+		fimage=images.getPriorImage();
 		repaint();
 	}
 	
@@ -99,18 +99,19 @@ public class Gui extends JPanel implements MouseListener
 			@Override
       public void actionPerformed(ActionEvent evt) {
 				log2.info("timesUp!" );
-				image=images.getRandomImage();
+				fimage=images.getRandomImage();
 				repaint();
       }
   };
 	
-  public void showSlides(Images images) 
+  public void showSlides(Images2 images) 
   { 
 		this.images=images;
-    frame.add(new Gui());
+    frame.add(new Gui2());
     frame.setSize(500, 400); 
 		//frame.addComponentListener();
-		image=images.getRandomImage();
+		fimage=images.getRandomImage();
+		frame.setTitle(fimage.getFile().getName());
     frame.setVisible(true); 
   } 
 }

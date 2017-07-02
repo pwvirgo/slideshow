@@ -14,7 +14,7 @@ import javax.swing.JPopupMenu;
  */
 public class SlideMenu extends JPopupMenu {
 
-	Gui gui;
+	Gui2 gui;
 	static final Logger	log = Logger.getLogger( "slideshow.SlideMenu" );
 	final dosomething		act = new dosomething();
 	final JMenuItem			pause = new JMenuItem("Pause");
@@ -24,7 +24,7 @@ public class SlideMenu extends JPopupMenu {
 	final JMenuItem			closeMenu = new JMenuItem("Close this menu (ESC)");
 	final JMenuItem			getINo = new JMenuItem("image number");
 	
-	public SlideMenu(Gui gui) {
+	public SlideMenu(Gui2 gui) {
 		log.setLevel(Level.FINER);
 		this.gui=gui;
 		add(pause);				pause.addActionListener(act);
@@ -42,22 +42,6 @@ public class SlideMenu extends JPopupMenu {
 		public void actionPerformed(ActionEvent e) {
 			log2.info( "action performed"); 
 			switch (e.getActionCommand()) {
-//				case "image number" :
-//				{
-//						String s = (String)JOptionPane.showInputDialog(
-//												gui,
-//												"Select an Image number\n",
-//												e.getActionCommand(),
-//												JOptionPane.QUESTION_MESSAGE,
-//												null,  null, "0");
-//
-//						if (s.chars().allMatch( Character::isDigit ))   ;
-//							gui.timer1.setDelay(Integer.parseInt(s));
-//						else 
-//							JOptionPane.showMessageDialog(gui, s + " is not a positive integer!", 
-//											e.getActionCommand(), JOptionPane.ERROR_MESSAGE);
-//				}
-//					break;
 				case "Pause" :
 					//gui.timer1.stop();
 					break;
@@ -87,6 +71,7 @@ public class SlideMenu extends JPopupMenu {
 					gui.timer1.restart();
 					
 					break;
+				case "Close this menu (ESC)" : break;
 				default: log.warning("SlideMenu! Unknown menu option was selected");
 			}
 		}
