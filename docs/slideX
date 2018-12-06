@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo "run the slideshow"
+
+/Library/Internet\ Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/bin/java -jar slideshow.jar "/Users/philvirgo/a/photos/"

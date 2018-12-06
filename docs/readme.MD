@@ -1,10 +1,68 @@
-# Documentation of Slideshow app
+# Slideshow app
+
 This is a java desktop application for displaying a slideshow of image files.  A single parameter string of a file folder of images is required. All images in that folder and all sub-folders are randomly displayed.  T
 
 The application window is resizable.
 
 A user menu is invoked by clicking the mouse on the slideshow. From this menu user can pause, resume, return to previously displayed images,request information about the image (fileName and path), and exit the application.
 
+# How to run the application
+The application should be in "slideshow.jar" - if the jvm v1.8 or better is installed you can just use the command line like :
+    java -jar "slideshow.jar" ~/a/photos/2004
+
+The last parameter is the root directory of the photos you want included.
+
+If the jvm is not installed ....... I should set this up for you, but that has not happened yet.
+
+
+# Orientation for developer (me)
+I am writing this in December of 2018 and trying to remember how this works....
+
+according to the git log this was a project I (Phillip Virgo)  started in Jun 2017 and put aside after 10 days.  I works but is by no means complete nor bug free.  I think if it crashes you just try again and that usually works.
+
+
+
+## To Do
+
+### fix Bugs
+**Null pointer errors in Gui2.java when accessing the playlist** which can happen when looking for previous slides, but which most often occurs at startup seems to be because of the swing timer events.
+
+*solutions*
++ pre-populate all slots of the playlist
+
++ muck with the swing.Timer delays (setting constructor delay to 600000, then timer.setInitialDelay(1000), and then having the user reset it seems to solve the problem).
+
++  cancel and replace the timer with a new timer rather than start and resume.  (this may be important for moving through the playlist)
+
++  switch to util.timer
+
+### General
++  full screen?
++  copy file path to clipboard
++  copy file path to notes.txt or db
++  support ratings and notes in a db
++  show warnings and errors to user
+
+### Add startup customization
+properties file and/or arguments
+  + image directory and/or a file of directories and/or files
+  + timer settings
+  + frame size
+  + control of log files and log levels
+
+### Add menu options
+  + change image file directory
+  + exit application
+
+### logging
+  + save logs to file
+  + save user notes to log file as makeshift notes db
+  + centralize control of log levels
+
+### learn to convert this file to pdf.
+
+### done
++  center images  (centered horizontally 20170602)
 
 ## Classes
 ### Gui.java
@@ -35,7 +93,9 @@ Main program responsible for:
 
 ## Issues with this app
 
-## Closing files
+
+
+### Closing files
 The files are not closed, and that may be a mistake, but  ImageIO has a `read()` but no `close()` method.
 
 ### Static - functional

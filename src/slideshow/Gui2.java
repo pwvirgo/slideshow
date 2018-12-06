@@ -28,16 +28,14 @@ public class Gui2 extends JPanel implements MouseListener
 		super();
 		addMouseListener(this);
 		add(slideMenu);
-		// there is a big problem with the swing timer! see the docs directory of this app 
-		// and keep this initial delay really big or the previous/next options will
-		// behave really badly!
+		// swing timer is bizarre!  KEEP TIMER DELAY HIGH IN CONSTRUCTOR
+		// images keep changing at this constructor delay times even after the delay
+		// has been reset and even when the timer is stopped!  
 		timer1	= new Timer(6000000, timesUp);
-		timer1.setInitialDelay(300);
+		timer1.setInitialDelay(1000);
 		timer1.setDelay(delay);
 		
 		timer1.start();
-
-		log.setLevel(Level.FINER);
 	}
 	
 	@Override public void mouseClicked(MouseEvent e) {
@@ -63,12 +61,13 @@ public class Gui2 extends JPanel implements MouseListener
 	public void paintComponent(Graphics g) 
   { 
 		
-		setBackground(Color.black); // doesn;t work after resizing 
+		setBackground(Color.black); // doesn't work after resizing 
 		frame.setTitle(fimage.getFile().getAbsolutePath());
-		int iW = fimage.getImage().getWidth();
+		int iW = fimage.getImage().getWidth();     // null pointer error
 		int iH = fimage.getImage().getHeight();
 		int pW = this.getWidth();
 		int pH = this.getHeight();
+		int offsetW = 0;               // horizontal offset of image 
 		float newW, newH;
 		
 		float iratio= (float) iW / iH;
@@ -77,14 +76,15 @@ public class Gui2 extends JPanel implements MouseListener
 	
 		if (iratio > fratio)  // image is proportionally wider than panel
 		{
-			newW = pW;  // find the width to the fit the panel
-			newH = iH *  ((float) pW / iW);  // shorten by same proportion as width
-		} else {  // image is proortionally taller than the panel
+			newW = pW;												//  set display width equal to panel width
+			newH = iH *  ((float) pW / iW);		// shorten height by same proportion as width
+		} else {							// image is proportionally taller than the panel
 			newH= pH;  
 			newW = iW *  ((float) pH / iH);  
+			offsetW = (pW - Math.round(newW)) / 2;
 		}
 		
-    if (!g.drawImage(fimage.getImage(), 0, 0, Math.round(newW), Math.round(newH), null))
+    if (!g.drawImage(fimage.getImage(), offsetW, 0, Math.round(newW), Math.round(newH), null))
 			 log.warning("draw failed");	
   } 
 	
@@ -98,8 +98,7 @@ public class Gui2 extends JPanel implements MouseListener
 		
 			@Override
       public void actionPerformed(ActionEvent evt) {
-				log2.info("timesUp!" );
-				fimage=images.getRandomImage();
+				fimage=images.getRandomImage();      // occasional null point error!
 				repaint();
       }
   };
@@ -111,7 +110,8 @@ public class Gui2 extends JPanel implements MouseListener
     frame.setSize(500, 400); 
 		//frame.addComponentListener();
 		fimage=images.getRandomImage();
-		frame.setTitle(fimage.getFile().getName());
+		
+		frame.setTitle(fimage.getFile().getName());  // null pointer
     frame.setVisible(true); 
   } 
 }

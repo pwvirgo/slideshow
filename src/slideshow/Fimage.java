@@ -1,11 +1,10 @@
-
 package slideshow;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
 
 /**
- *
+ *  
  * @author pwv
  */
 public class Fimage  {

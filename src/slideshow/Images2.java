@@ -16,7 +16,7 @@ import javax.imageio.ImageIO;
 public class Images2 {
 	static final Logger			log = Logger.getLogger( "slideshow.Images" );
 	private File []					imgFiles;
-	private final int				playlistSize = 11;
+	private final int				playlistSize = 5;
 	private final Fimage []	playlist = new Fimage[playlistSize];
 	private int							currIndex = -1; // index of the current image in the playlist
 	private Random					random = new Random();
@@ -67,15 +67,19 @@ public class Images2 {
 			fimage.setImage(ImageIO.read(imgfile));
 			fimage.setFile(imgfile);
 		} 
-		catch (IOException e) {
-			log.log(Level.SEVERE, "images: error reading imageFile {0}",
+		catch (Exception e) {
+			log.severe(e.getMessage() + " " +
 							imgfile.getAbsolutePath());
 		}
+		if (fimage == null) {
+			log.severe("fimage is null \n");
+		}  else log.info("No problem!" + fimage.getFile() + "\n");
+		
 		return fimage; 
 	}
 	
 	public Fimage getPriorImage() {
-		log.info("                             playlist: " + showplaylist() +
+		log.finer("                             playlist: " + showplaylist() +
 						" currIndex: " + currIndex);  
 		
 		if (currIndex == 0) {
@@ -87,7 +91,7 @@ public class Images2 {
 		else if (playlist[currIndex -1] != null) 
 			currIndex = --currIndex;
 		
-		log.info("                             RESET to: " + showplaylist() +
+		log.finer("                             RESET to: " + showplaylist() +
 						" currIndex: " + currIndex);  
 		return playlist[currIndex];
 	}
@@ -107,9 +111,21 @@ public class Images2 {
 	 * @return the image
 	 */
 	public Fimage getRandomImage() {
-		Fimage fimage;
+		int rand = random.nextInt(imgFiles.length); 
+		log.info("BEFORE getImage() " + showplaylist()+ " currIndex: " + currIndex + "\n");
 		currIndex = ++currIndex % playlistSize;	
-		playlist[currIndex] = getImage(random.nextInt(imgFiles.length));
+		playlist[currIndex] = getImage(random.nextInt(rand));
+		
+		log.info("AFTER getImage() " + showplaylist()+ " currIndex: " + currIndex + "\n");
+		
+		if (playlist[currIndex] == null ) {
+			log.severe("Playlist[currIndex] is null! igmFiles.length: " + imgFiles.length 
+				+ "  rand: "  + rand );
+		} else if (playlist[currIndex].getFile() == null) {
+			log.severe("Playlist[currIndex].getfile() is null ! "
+				+ "igmFiles.length: " + imgFiles.length 
+				+ "  rand: "  + rand );
+		}
 		return playlist[currIndex];
 	}
 	
