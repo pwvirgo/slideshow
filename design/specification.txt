@@ -1,0 +1,55 @@
+A program to run a slideshow from all images in a folder, and
+sub-folders. 
+
+The host is a static HTML page using css and javascript and has access
+to a a folder of images.
+
+
+The images should be display to the maximum of the display height and
+width such that the entire image is visable. Possibly with a border at
+some point.  
+
+There will be a "what's this / how to" display of how to use
+the app - which will appear until the user selects DO IT.  
+
+There should be a params.json file where program settings
+are stored.  These include:
+	folderName:  the full path to the root folder of images
+	displayTime:  milliseconds for for each slide
+	
+In the future there will likely be more settings.  At first this will
+be maintained by hand - but maybe in the future it could be modified by
+users using the app
+
+
+Once things are working there will be a way for the user to interupt the
+program by typing esc.  This will bring up a dialog overlapping the
+image display for user to select from these options:
+
+	- diplay the "what's this / how to" page
+	- change display time for each image
+	- pause the show and return to the image on the screen (until the
+	  next esc
+	- show image information:
+		path/filename
+		file size 
+		creation and modification dates
+		in the future this may include exif or other info
+	- (not in initial prototype) add a row to a db with comment and filename
+		possibly delete the file (other options TBD)
+	- devloper information/ documentation
+
+Once this is working it maybe be deployed as a standalone and also from
+a larger web site.
+
+The whole thing should be as perfect and simple and elegant as possible.
+
+Notes/Questions
+
+I think typescript can be stricter about type expectations and
+notation then is javascript - but it maybe more combersome to develop in
+typescript beause of the need to compile to js?
+
+
+I'd like to see it coded in typescript unless there is some downside to
+that.

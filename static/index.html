@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slideshow</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div id="slideshow-container">
+    <div id="loading">Loading images...</div>
+    <img id="current-image" alt="Slideshow image">
+    <img id="preload-image" alt="">
+  </div>
+
+  <div id="pause-indicator">PAUSED</div>
+
+  <div id="image-counter"></div>
+
+  <div id="menu-overlay">
+    <div id="menu-content">
+      <h2>Slideshow Menu</h2>
+      <p><span class="key">Space</span> Pause / Resume</p>
+      <p><span class="key">Esc</span> Toggle this menu</p>
+      <p><span class="key">←</span> Previous image</p>
+      <p><span class="key">→</span> Next image</p>
+      <button id="resume-btn">Resume</button>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
