@@ -1,5 +1,5 @@
 import { logger } from "./lib/logger.ts";
-import { loadConfig, Config } from "./lib/config.ts";
+import { loadParams, Params } from "./lib/params.ts";
 import { scanImages } from "./lib/scanner.ts";
 
 const PORT = 8000;
@@ -39,13 +39,13 @@ async function serveFile(path: string): Promise<Response> {
 async function main(): Promise<void> {
   logger.info("Starting slideshow server...");
 
-  const config = await loadConfig();
-  const images = await scanImages(config);
+  const params = await loadParams();
+  const images = await scanImages(params);
 
   // Convert absolute paths to relative paths for the API
   const imagePaths = images.map((img) => {
     // Return path relative to the image folder
-    return img.replace(config.imageFolderPath, "").replace(/^\//, "");
+    return img.replace(params.imageFolderPath, "").replace(/^\//, "");
   });
 
   logger.info(`Server starting on http://localhost:${PORT}`);
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
       return new Response(
         JSON.stringify({
           images: imagePaths,
-          displayTimeMs: config.displayTimeMs,
+          displayTimeMs: params.displayTimeMs,
         }),
         {
           headers: { "Content-Type": "application/json" },
@@ -83,7 +83,7 @@ async function main(): Promise<void> {
     // Route: GET /images/* - Serve actual images from configured folder
     if (pathname.startsWith("/images/")) {
       const relativePath = pathname.replace("/images/", "");
-      const fullPath = `${config.imageFolderPath}/${relativePath}`;
+      const fullPath = `${params.imageFolderPath}/${relativePath}`;
       return serveFile(fullPath);
     }
 

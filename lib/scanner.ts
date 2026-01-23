@@ -1,5 +1,5 @@
 import { logger } from "./logger.ts";
-import { Config } from "./config.ts";
+import { Params } from "./params.ts";
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 
@@ -18,8 +18,8 @@ function isImageFile(filename: string): boolean {
   return IMAGE_EXTENSIONS.has(getExtension(filename));
 }
 
-export async function scanImages(config: Config): Promise<string[]> {
-  const { imageFolderPath, maxDepth, maxFiles } = config;
+export async function scanImages(params: Params): Promise<string[]> {
+  const { imageFolderPath, maxDepth, maxFiles } = params;
   const images: ImageFile[] = [];
 
   logger.info(`Scanning for images in: ${imageFolderPath}`);
