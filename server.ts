@@ -25,7 +25,10 @@ async function serveFile(path: string): Promise<Response> {
   try {
     const file = await Deno.readFile(path);
     return new Response(file, {
-      headers: { "Content-Type": getMimeType(path) },
+      headers: {
+        "Content-Type": getMimeType(path),
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+      },
     });
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) {
@@ -56,9 +59,14 @@ async function main(): Promise<void> {
 
     logger.debug(`${request.method} ${pathname}`);
 
-    // Route: GET / - Serve index.html
-    if (pathname === "/") {
-      return serveFile("./static/index.html");
+    // Route: GET / or /slides - Serve slides.html (slideshow viewer)
+    if (pathname === "/" || pathname === "/slides" || pathname === "/slides.html") {
+      return serveFile("./static/slides.html");
+    }
+
+    // Route: GET /params - Serve params.html (params page)
+    if (pathname === "/params" || pathname === "/params.html") {
+      return serveFile("./static/params.html");
     }
 
     // Route: GET /static/* - Serve static files
@@ -67,11 +75,38 @@ async function main(): Promise<void> {
       return serveFile(filePath);
     }
 
-    // Route: GET /api/images - Return image list
-    if (pathname === "/api/images") {
+    // Route: GET /api/params - Return current parameters
+    if (pathname === "/api/params") {
       return new Response(
         JSON.stringify({
-          images: imagePaths,
+          imageFolderPath: params.imageFolderPath,
+          displayTimeMs: params.displayTimeMs,
+          maxDepth: params.maxDepth,
+          maxFiles: params.maxFiles,
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Route: GET /api/images - Return image list
+    // Optional query param: folder - filter to images within this subfolder
+    if (pathname === "/api/images") {
+      const folderParam = url.searchParams.get("folder");
+      let filteredImages = imagePaths;
+
+      if (folderParam) {
+        // Normalize folder param (remove leading/trailing slashes)
+        const normalizedFolder = folderParam.replace(/^\/+|\/+$/g, "");
+        filteredImages = imagePaths.filter((img) =>
+          img.startsWith(normalizedFolder + "/") || img.startsWith(normalizedFolder)
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          images: filteredImages,
           displayTimeMs: params.displayTimeMs,
         }),
         {

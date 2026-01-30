@@ -1,4 +1,4 @@
-(function() {
+(function app() {
   // DOM elements
   const currentImage = document.getElementById('current-image');
   const preloadImage = document.getElementById('preload-image');
@@ -7,11 +7,15 @@
   const menuOverlay = document.getElementById('menu-overlay');
   const resumeBtn = document.getElementById('resume-btn');
   const imageCounter = document.getElementById('image-counter');
+  const paramsLink = document.getElementById('params-link');
+
+  // Parse URL params
+  const urlParams = new URLSearchParams(window.location.search);
 
   // State
   let images = [];
-  let currentIndex = 0;
-  let displayTimeMs = 5000;
+  let currentIndex = parseInt(urlParams.get('index')) || 0;
+  let displayTimeMs = parseInt(urlParams.get('displayTimeMs')) || 5000;
   let isPaused = false;
   let isMenuOpen = false;
   let timer = null;
@@ -19,10 +23,17 @@
   // Fetch image list from server
   async function fetchImages() {
     try {
-      const response = await fetch('/api/images');
+      const folder = urlParams.get('folder');
+      const apiUrl = folder ? `/api/images?folder=${encodeURIComponent(folder)}` : '/api/images';
+      const response = await fetch(apiUrl);
       const data = await response.json();
       images = data.images;
-      displayTimeMs = data.displayTimeMs;
+
+
+      // Use URL param if provided, otherwise fall back to API value
+      if (!urlParams.has('displayTimeMs')) {
+        displayTimeMs = data.displayTimeMs;
+      }
 
       if (images.length === 0) {
         loadingEl.textContent = 'No images found';
@@ -30,7 +41,9 @@
       }
 
       loadingEl.style.display = 'none';
-      showImage(0);
+      // Start from URL index (clamped to valid range)
+      const startIndex = Math.min(currentIndex, images.length - 1);
+      showImage(startIndex);
     } catch (error) {
       console.error('Failed to fetch images:', error);
       loadingEl.textContent = 'Failed to load images';
@@ -46,6 +59,9 @@
 
     // Update counter
     imageCounter.textContent = `${index + 1} / ${images.length}`;
+
+    // Update settings link to preserve current position
+    paramsLink.href = '/params?index=' + index + '&displayTimeMs=' + displayTimeMs;
 
     // Preload next image
     const nextIndex = (index + 1) % images.length;

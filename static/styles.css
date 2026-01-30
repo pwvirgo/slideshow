@@ -7,8 +7,17 @@
 html, body {
   width: 100%;
   height: 100%;
-  overflow: hidden;
   background-color: #000;
+}
+
+body.slideshow {
+  overflow: hidden;
+}
+
+body.settings {
+  height: auto;
+  min-height: 100%;
+  overflow: auto;
 }
 
 #slideshow-container {
@@ -110,6 +119,19 @@ html, body {
   background-color: #3a8eef;
 }
 
+#menu-content .menu-link {
+  margin-top: 15px;
+}
+
+#menu-content .menu-link a {
+  color: #4a9eff;
+  text-decoration: none;
+}
+
+#menu-content .menu-link a:hover {
+  text-decoration: underline;
+}
+
 /* Loading state */
 #loading {
   position: fixed;
@@ -133,4 +155,122 @@ html, body {
   font-family: sans-serif;
   font-size: 14px;
   z-index: 100;
+}
+
+/* ===========================================
+   Slides/Settings Page
+   =========================================== */
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.container h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+  color: #4a9eff;
+}
+
+.description {
+  color: #aaa;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 30px;
+}
+
+.container h2 {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: #ccc;
+  border-bottom: 1px solid #333;
+  padding-bottom: 10px;
+}
+
+.param-group {
+  margin-bottom: 20px;
+}
+
+.param-group label {
+  display: block;
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 5px;
+}
+
+.param-group input[type="text"],
+.param-group input[type="number"] {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #fff;
+}
+
+.param-group input:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.param-help {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.button-group button {
+  flex: 1;
+  padding: 15px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary {
+  background-color: #4a9eff;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background-color: #3a8eef;
+}
+
+.btn-secondary {
+  background-color: #333;
+  color: #fff;
+}
+
+.btn-secondary:hover {
+  background-color: #444;
+}
+
+.status {
+  margin-top: 20px;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 14px;
+  display: none;
+}
+
+.status.error {
+  display: block;
+  background-color: #4a1a1a;
+  color: #ff6b6b;
+}
+
+.status.success {
+  display: block;
+  background-color: #1a4a1a;
+  color: #6bff6b;
 }
