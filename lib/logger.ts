@@ -1,6 +1,27 @@
 const LOG_FILE = "slideshow.log";
 
-type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
+export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
+
+const LEVEL_ORDER: Record<LogLevel, number> = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3,
+};
+
+let currentLevel: LogLevel = "INFO";
+
+export function setLogLevel(level: LogLevel): void {
+  currentLevel = level;
+}
+
+export function getLogLevel(): LogLevel {
+  return currentLevel;
+}
+
+function shouldLog(level: LogLevel): boolean {
+  return LEVEL_ORDER[level] >= LEVEL_ORDER[currentLevel];
+}
 
 async function writeToFile(message: string): Promise<void> {
   try {
@@ -16,27 +37,31 @@ function formatMessage(level: LogLevel, message: string): string {
 }
 
 export function info(message: string): void {
+  if (!shouldLog("INFO")) return;
   const formatted = formatMessage("INFO", message);
   console.log(formatted);
   writeToFile(formatted);
 }
 
 export function warn(message: string): void {
+  if (!shouldLog("WARN")) return;
   const formatted = formatMessage("WARN", message);
   console.warn(formatted);
   writeToFile(formatted);
 }
 
 export function error(message: string): void {
+  if (!shouldLog("ERROR")) return;
   const formatted = formatMessage("ERROR", message);
   console.error(formatted);
   writeToFile(formatted);
 }
 
 export function debug(message: string): void {
+  if (!shouldLog("DEBUG")) return;
   const formatted = formatMessage("DEBUG", message);
   console.log(formatted);
   writeToFile(formatted);
 }
 
-export const logger = { info, warn, error, debug };
+export const logger = { info, warn, error, debug, setLogLevel, getLogLevel };

@@ -1,3 +1,7 @@
+// app.js — Slideshow viewer
+// Responsibilities: fetch image list, display images, handle slideshow
+// controls (pause, resume, next, prev, menu).
+
 (function app() {
   // DOM elements
   const currentImage = document.getElementById('current-image');
@@ -20,37 +24,16 @@
   let isMenuOpen = false;
   let timer = null;
 
-  // Fetch image list from server
+  // Fetch image list from server (data only, no display)
   async function fetchImages() {
-    try {
-      const folder = urlParams.get('folder');
-      const apiUrl = folder ? `/api/images?folder=${encodeURIComponent(folder)}` : '/api/images';
-      const response = await fetch(apiUrl);
-      const data = await response.json();
-      images = data.images;
-
-
-      // Use URL param if provided, otherwise fall back to API value
-      if (!urlParams.has('displayTimeMs')) {
-        displayTimeMs = data.displayTimeMs;
-      }
-
-      if (images.length === 0) {
-        loadingEl.textContent = 'No images found';
-        return;
-      }
-
-      loadingEl.style.display = 'none';
-      // Start from URL index (clamped to valid range)
-      const startIndex = Math.min(currentIndex, images.length - 1);
-      showImage(startIndex);
-    } catch (error) {
-      console.error('Failed to fetch images:', error);
-      loadingEl.textContent = 'Failed to load images';
-    }
+    const folder = urlParams.get('folder');
+    const apiUrl = folder ? `/api/images?folder=${encodeURIComponent(folder)}` : '/api/images';
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    return data;
   }
 
-  // Display an image
+  // Display an image by index
   function showImage(index) {
     currentIndex = index;
     const imagePath = '/images/' + images[index];
@@ -60,7 +43,7 @@
     // Update counter
     imageCounter.textContent = `${index + 1} / ${images.length}`;
 
-    // Update settings link to preserve current position
+    // Update params link to preserve current position
     paramsLink.href = '/params?index=' + index + '&displayTimeMs=' + displayTimeMs;
 
     // Preload next image
@@ -155,6 +138,31 @@
     }
   });
 
-  // Start the slideshow
-  fetchImages();
+  // Initialize: fetch data, then start slideshow
+  async function init() {
+    try {
+      const data = await fetchImages();
+      images = data.images;
+
+      // Use URL param if provided, otherwise fall back to API value
+      if (!urlParams.has('displayTimeMs')) {
+        displayTimeMs = data.displayTimeMs;
+      }
+
+      if (images.length === 0) {
+        loadingEl.textContent = 'No images found';
+        return;
+      }
+
+      loadingEl.style.display = 'none';
+      // Start from URL index (clamped to valid range)
+      const startIndex = Math.min(currentIndex, images.length - 1);
+      showImage(startIndex);
+    } catch (error) {
+      console.error('Failed to fetch images:', error);
+      loadingEl.textContent = 'Failed to load images';
+    }
+  }
+
+  init();
 })();

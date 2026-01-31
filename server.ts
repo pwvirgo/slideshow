@@ -1,4 +1,4 @@
-import { logger } from "./lib/logger.ts";
+import { logger, LogLevel } from "./lib/logger.ts";
 import { loadParams, Params } from "./lib/params.ts";
 import { scanImages } from "./lib/scanner.ts";
 
@@ -43,6 +43,7 @@ async function main(): Promise<void> {
   logger.info("Starting slideshow server...");
 
   const params = await loadParams();
+  logger.setLogLevel(params.logLevel);
   const images = await scanImages(params);
 
   // Convert absolute paths to relative paths for the API
@@ -83,11 +84,37 @@ async function main(): Promise<void> {
           displayTimeMs: params.displayTimeMs,
           maxDepth: params.maxDepth,
           maxFiles: params.maxFiles,
+          logLevel: logger.getLogLevel(),
         }),
         {
           headers: { "Content-Type": "application/json" },
         }
       );
+    }
+
+    // Route: POST /api/logLevel - Change log level at runtime
+    if (pathname === "/api/logLevel" && request.method === "POST") {
+      const VALID_LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
+      try {
+        const body = await request.json();
+        const level = body.logLevel as LogLevel;
+        if (!VALID_LEVELS.includes(level)) {
+          return new Response(JSON.stringify({ error: "Invalid log level" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        logger.setLogLevel(level);
+        logger.info(`Log level changed to ${level}`);
+        return new Response(JSON.stringify({ logLevel: level }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid request body" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Route: GET /api/images - Return image list

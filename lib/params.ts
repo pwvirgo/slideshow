@@ -1,10 +1,11 @@
-import { logger } from "./logger.ts";
+import { logger, LogLevel } from "./logger.ts";
 
 export interface Params {
   imageFolderPath: string;
   displayTimeMs: number;
   maxDepth: number;
   maxFiles: number;
+  logLevel: LogLevel;
 }
 
 const DEFAULT_PARAMS: Params = {
@@ -12,6 +13,7 @@ const DEFAULT_PARAMS: Params = {
   displayTimeMs: 5000,
   maxDepth: 3,
   maxFiles: 200,
+  logLevel: "INFO",
 };
 
 export async function loadParams(paramsPath = "params.json"): Promise<Params> {
@@ -24,6 +26,7 @@ export async function loadParams(paramsPath = "params.json"): Promise<Params> {
       displayTimeMs: parsed.displayTimeMs ?? DEFAULT_PARAMS.displayTimeMs,
       maxDepth: parsed.maxDepth ?? DEFAULT_PARAMS.maxDepth,
       maxFiles: parsed.maxFiles ?? DEFAULT_PARAMS.maxFiles,
+      logLevel: parsed.logLevel ?? DEFAULT_PARAMS.logLevel,
     };
 
     // Validate params

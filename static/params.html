@@ -14,13 +14,23 @@
       then click "Start Slideshow" to begin.
     </p>
 
-    <form id="params-form">
+    <form id="params-form" method="GET" action="/slides">
       <h2>Params</h2>
+      <input type="hidden" id="index" name="index" value="0">
 
       <div class="param-group">
         <label for="displayTimeMs">Display Time (ms)</label>
         <input type="number" id="displayTimeMs" name="displayTimeMs" value="5000" min="100" step="100">
         <p class="param-help">How long each image is shown (minimum 100ms)</p>
+      </div>
+
+      <div class="param-group">
+        <label for="logLevel">Server Log Level</label>
+        <select id="logLevel">
+          <option value="INFO" selected>INFO — operational messages, warnings, and errors</option>
+          <option value="DEBUG">DEBUG — everything including verbose diagnostics</option>
+        </select>
+        <p class="param-help">Controls which messages appear in the server console and log file</p>
       </div>
 
       <div id="status" class="status"></div>

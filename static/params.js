@@ -1,25 +1,32 @@
+// params.js — Params page
+// Responsibilities: load default param values from server, validate inputs,
+// update server log level on change. Navigation is handled by native
+// form GET submission (action="/slides").
+
 (function() {
-  const form = document.getElementById('params-form');
+  const displayTimeMsInput = document.getElementById('displayTimeMs');
+  const logLevelSelect = document.getElementById('logLevel');
+  const indexInput = document.getElementById('index');
   const statusEl = document.getElementById('status');
   const backBtn = document.getElementById('back-btn');
-  const displayTimeMsInput = document.getElementById('displayTimeMs');
 
-  // Parse URL params (to preserve index when returning to slideshow)
+  // Preserve image index from incoming URL
   const urlParams = new URLSearchParams(window.location.search);
-  const imageIndex = urlParams.get('index') || 0;
+  indexInput.value = urlParams.get('index') || 0;
 
-  // Load current displayTimeMs from URL param or API
+  // Load current param values from URL or API
   async function loadParams() {
-    // First check URL param
     if (urlParams.has('displayTimeMs')) {
       displayTimeMsInput.value = urlParams.get('displayTimeMs');
-      return;
     }
-    // Fall back to API
+
     try {
       const response = await fetch('/api/params');
       const params = await response.json();
-      displayTimeMsInput.value = params.displayTimeMs;
+      if (!urlParams.has('displayTimeMs')) {
+        displayTimeMsInput.value = params.displayTimeMs;
+      }
+      logLevelSelect.value = params.logLevel;
     } catch (error) {
       console.error('Failed to load params:', error);
     }
@@ -34,25 +41,32 @@
     }, 3000);
   }
 
-  // Handle form submit - start slideshow
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-
-    const displayTime = parseInt(displayTimeMsInput.value);
-    if (displayTime < 100) {
-      showStatus('Display time must be at least 100ms', true);
-      return;
+  // Update log level on server when changed
+  logLevelSelect.addEventListener('change', async () => {
+    try {
+      const response = await fetch('/api/logLevel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logLevel: logLevelSelect.value }),
+      });
+      if (response.ok) {
+        showStatus('Log level updated', false);
+      } else {
+        showStatus('Failed to update log level', true);
+      }
+    } catch (error) {
+      console.error('Failed to set log level:', error);
+      showStatus('Failed to update log level', true);
     }
-
-    // Navigate to slideshow with params, preserving image index
-    window.location.href = '/slides?displayTimeMs=' + displayTime + '&index=' + imageIndex;
   });
 
-  // Handle back button
+  // Back button: return to slideshow at same position
   backBtn.addEventListener('click', () => {
-    // Go back to slideshow at same position
-    const displayTime = parseInt(displayTimeMsInput.value) || 5000;
-    window.location.href = '/slides?displayTimeMs=' + displayTime + '&index=' + imageIndex;
+    if (document.referrer && document.referrer !== window.location.href) {
+      window.history.back();
+    } else {
+      window.location.href = '/slides';
+    }
   });
 
   // Initialize

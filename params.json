@@ -2,5 +2,6 @@
   "imageFolderPath": "/Users/pwv16/b/projects/slideshow/images",
   "displayTimeMs": 5000,
   "maxDepth": 3,
-  "maxFiles": 200
+  "maxFiles": 200,
+  "logLevel": "INFO"
 }
