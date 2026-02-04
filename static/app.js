@@ -86,6 +86,7 @@
       scheduleNext();
     } else {
       clearTimeout(timer);
+      console.log('Paused on image ' + currentIndex + ': ' + images[currentIndex]);
     }
   }
 
