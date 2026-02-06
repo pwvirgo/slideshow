@@ -15,7 +15,27 @@
 
   <div id="pause-indicator">PAUSED</div>
 
+  <div id="action-indicator"></div>
+
   <div id="image-counter"></div>
+
+  <!-- Action panel: shown when user presses an action key in DB mode -->
+  <div id="action-overlay">
+    <div id="action-panel">
+      <p id="action-filename"></p>
+      <div class="action-buttons">
+        <button class="action-btn" data-act="favorite">f — Favorite</button>
+        <button class="action-btn" data-act="delete">d — Delete</button>
+        <button class="action-btn" data-act="rotate">r — Rotate</button>
+      </div>
+      <div class="param-group" style="margin-top:15px;">
+        <label for="action-note" style="color:#888;font-size:13px;">Note (optional)</label>
+        <input type="text" id="action-note" placeholder="Add a note...">
+      </div>
+      <div id="action-status"></div>
+      <button id="action-resume-btn">Resume</button>
+    </div>
+  </div>
 
   <div id="menu-overlay">
     <div id="menu-content">
@@ -24,6 +44,10 @@
       <p><span class="key">Esc</span> Toggle this menu</p>
       <p><span class="key">←</span> Previous image</p>
       <p><span class="key">→</span> Next image</p>
+      <p class="menu-section">Actions (DB mode)</p>
+      <p><span class="key">f</span> Favorite</p>
+      <p><span class="key">d</span> Mark for delete</p>
+      <p><span class="key">r</span> Mark for rotate</p>
       <button id="resume-btn">Resume</button>
       <p class="menu-link"><a id="params-link" href="/params">Params</a></p>
     </div>

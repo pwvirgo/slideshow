@@ -1,6 +1,8 @@
 import { logger, LogLevel } from "./lib/logger.ts";
 import { loadParams, Params } from "./lib/params.ts";
 import { scanImages } from "./lib/scanner.ts";
+import { openDb, queryImages, insertAction, DbImage } from "./lib/db.ts";
+import { DatabaseSync } from "node:sqlite";
 
 const PORT = 8000;
 
@@ -39,18 +41,51 @@ async function serveFile(path: string): Promise<Response> {
   }
 }
 
+function jsonResponse(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+// Load images from folder source — returns relative paths (same as before)
+async function loadFolderImages(params: Params): Promise<{ imagePaths: string[], dbImages: null }> {
+  const images = await scanImages(params);
+  const imagePaths = images.map((img) =>
+    img.replace(params.imageFolderPath, "").replace(/^\//, "")
+  );
+  return { imagePaths, dbImages: null };
+}
+
+// Load images from DB source — returns DbImage[] with ids and absolute paths
+function loadDbImages(params: Params): { imagePaths: null, dbImages: DbImage[], db: DatabaseSync } {
+  const db = openDb(params.dbPath);
+  const dbImages = queryImages(db, params.whereClause, params.maxFiles);
+  return { imagePaths: null, dbImages, db };
+}
+
 async function main(): Promise<void> {
   logger.info("Starting slideshow server...");
 
   const params = await loadParams();
   logger.setLogLevel(params.logLevel);
-  const images = await scanImages(params);
 
-  // Convert absolute paths to relative paths for the API
-  const imagePaths = images.map((img) => {
-    // Return path relative to the image folder
-    return img.replace(params.imageFolderPath, "").replace(/^\//, "");
-  });
+  // Load images based on source
+  let folderImagePaths: string[] = [];
+  let dbImages: DbImage[] = [];
+  let db: DatabaseSync | null = null;
+  const isDbSource = params.source === "db";
+
+  if (isDbSource) {
+    const result = loadDbImages(params);
+    dbImages = result.dbImages;
+    db = result.db;
+    logger.info(`DB source: ${dbImages.length} images loaded`);
+  } else {
+    const result = await loadFolderImages(params);
+    folderImagePaths = result.imagePaths;
+    logger.info(`Folder source: ${folderImagePaths.length} images loaded`);
+  }
 
   logger.info(`Server starting on http://localhost:${PORT}`);
 
@@ -77,19 +112,42 @@ async function main(): Promise<void> {
     }
 
     // Route: GET /api/params - Return current parameters
-    if (pathname === "/api/params") {
-      return new Response(
-        JSON.stringify({
-          imageFolderPath: params.imageFolderPath,
-          displayTimeMs: params.displayTimeMs,
-          maxDepth: params.maxDepth,
-          maxFiles: params.maxFiles,
-          logLevel: logger.getLogLevel(),
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+    if (pathname === "/api/params" && request.method === "GET") {
+      return jsonResponse({
+        source: params.source,
+        imageFolderPath: params.imageFolderPath,
+        dbPath: params.dbPath,
+        whereClause: params.whereClause,
+        displayTimeMs: params.displayTimeMs,
+        maxDepth: params.maxDepth,
+        maxFiles: params.maxFiles,
+        logLevel: logger.getLogLevel(),
+      });
+    }
+
+    // Route: POST /api/params - Save editable params
+    // Requires server restart to take effect.
+    if (pathname === "/api/params" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const text = await Deno.readTextFile("params.json");
+        const current = JSON.parse(text);
+
+        // Update fields from the form
+        if (body.source !== undefined) current.source = body.source;
+        if (body.dbPath !== undefined) current.dbPath = body.dbPath;
+        if (body.whereClause !== undefined) current.whereClause = body.whereClause;
+        if (body.imageFolderPath !== undefined) current.imageFolderPath = body.imageFolderPath;
+        if (body.maxDepth !== undefined) current.maxDepth = body.maxDepth;
+        if (body.maxFiles !== undefined) current.maxFiles = body.maxFiles;
+
+        await Deno.writeTextFile("params.json", JSON.stringify(current, null, 2) + "\n");
+        logger.info(`Params saved: source=${current.source}`);
+        return jsonResponse({ ok: true, message: "Saved. Restart server to apply changes." });
+      } catch (error) {
+        logger.error(`Failed to save params: ${error}`);
+        return jsonResponse({ error: "Failed to save params" }, 500);
+      }
     }
 
     // Route: POST /api/logLevel - Change log level at runtime
@@ -99,54 +157,90 @@ async function main(): Promise<void> {
         const body = await request.json();
         const level = body.logLevel as LogLevel;
         if (!VALID_LEVELS.includes(level)) {
-          return new Response(JSON.stringify({ error: "Invalid log level" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          });
+          return jsonResponse({ error: "Invalid log level" }, 400);
         }
         logger.setLogLevel(level);
         logger.info(`Log level changed to ${level}`);
-        return new Response(JSON.stringify({ logLevel: level }), {
-          headers: { "Content-Type": "application/json" },
-        });
+        return jsonResponse({ logLevel: level });
       } catch {
-        return new Response(JSON.stringify({ error: "Invalid request body" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
+        return jsonResponse({ error: "Invalid request body" }, 400);
       }
     }
 
     // Route: GET /api/images - Return image list
-    // Optional query param: folder - filter to images within this subfolder
     if (pathname === "/api/images") {
-      const folderParam = url.searchParams.get("folder");
-      let filteredImages = imagePaths;
+      if (isDbSource) {
+        // DB mode: return list of {id, index} so frontend can reference by index
+        // Images served via /images/<index> which maps to dbImages[index]
+        const imageList = dbImages.map((_img, i) => String(i));
+        return jsonResponse({
+          source: "db",
+          images: imageList,
+          displayTimeMs: params.displayTimeMs,
+        });
+      } else {
+        // Folder mode: same as before
+        const folderParam = url.searchParams.get("folder");
+        let filteredImages = folderImagePaths;
 
-      if (folderParam) {
-        // Normalize folder param (remove leading/trailing slashes)
-        const normalizedFolder = folderParam.replace(/^\/+|\/+$/g, "");
-        filteredImages = imagePaths.filter((img) =>
-          img.startsWith(normalizedFolder + "/") || img.startsWith(normalizedFolder)
-        );
-      }
+        if (folderParam) {
+          const normalizedFolder = folderParam.replace(/^\/+|\/+$/g, "");
+          filteredImages = folderImagePaths.filter((img) =>
+            img.startsWith(normalizedFolder + "/") || img.startsWith(normalizedFolder)
+          );
+        }
 
-      return new Response(
-        JSON.stringify({
+        return jsonResponse({
+          source: "folder",
           images: filteredImages,
           displayTimeMs: params.displayTimeMs,
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+        });
+      }
     }
 
-    // Route: GET /images/* - Serve actual images from configured folder
+    // Route: GET /api/imageInfo/<index> - Return metadata for current image (DB mode)
+    if (isDbSource && pathname.startsWith("/api/imageInfo/")) {
+      const index = parseInt(pathname.replace("/api/imageInfo/", ""));
+      if (isNaN(index) || index < 0 || index >= dbImages.length) {
+        return jsonResponse({ error: "Invalid image index" }, 400);
+      }
+      const img = dbImages[index];
+      return jsonResponse({ id: img.id, name: img.name, path: img.fullPath });
+    }
+
+    // Route: POST /api/actions - Record an action on an image (DB mode)
+    if (isDbSource && pathname === "/api/actions" && request.method === "POST") {
+      if (!db) {
+        return jsonResponse({ error: "Database not available" }, 500);
+      }
+      try {
+        const body = await request.json();
+        const { fotoId, act, note } = body;
+        if (typeof fotoId !== "number" || typeof act !== "string") {
+          return jsonResponse({ error: "fotoId (number) and act (string) required" }, 400);
+        }
+        insertAction(db, fotoId, act, note ?? "");
+        return jsonResponse({ ok: true });
+      } catch {
+        return jsonResponse({ error: "Invalid request body" }, 400);
+      }
+    }
+
+    // Route: GET /images/* - Serve actual image files
     if (pathname.startsWith("/images/")) {
-      const relativePath = pathname.replace("/images/", "");
-      const fullPath = `${params.imageFolderPath}/${relativePath}`;
-      return serveFile(fullPath);
+      if (isDbSource) {
+        // DB mode: /images/<index> maps to dbImages[index].fullPath
+        const index = parseInt(pathname.replace("/images/", ""));
+        if (isNaN(index) || index < 0 || index >= dbImages.length) {
+          return new Response("Not Found", { status: 404 });
+        }
+        return serveFile(dbImages[index].fullPath);
+      } else {
+        // Folder mode: /images/<relative-path> under imageFolderPath
+        const relativePath = pathname.replace("/images/", "");
+        const fullPath = `${params.imageFolderPath}/${relativePath}`;
+        return serveFile(fullPath);
+      }
     }
 
     return new Response("Not Found", { status: 404 });

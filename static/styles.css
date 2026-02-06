@@ -58,6 +58,127 @@ body.settings {
   display: block;
 }
 
+/* Action toast indicator */
+#action-indicator {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(74, 158, 255, 0.85);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 5px;
+  font-family: sans-serif;
+  font-size: 16px;
+  display: none;
+  z-index: 100;
+}
+
+#action-indicator.visible {
+  display: block;
+}
+
+/* Action overlay panel */
+#action-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 60px;
+  z-index: 150;
+}
+
+#action-overlay.visible {
+  display: flex;
+}
+
+#action-panel {
+  background-color: #1a1a1a;
+  padding: 25px 30px;
+  border-radius: 10px;
+  text-align: center;
+  color: #fff;
+  font-family: sans-serif;
+  min-width: 350px;
+  max-width: 500px;
+}
+
+#action-filename {
+  font-size: 14px;
+  color: #aaa;
+  margin-bottom: 15px;
+  word-break: break-all;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background-color: #4a9eff;
+  border-color: #4a9eff;
+}
+
+.action-btn.selected {
+  background-color: #4a9eff;
+  border-color: #4a9eff;
+}
+
+#action-panel input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  background-color: #222;
+  border: 1px solid #444;
+  border-radius: 5px;
+  color: #fff;
+}
+
+#action-panel input[type="text"]:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+#action-status {
+  font-size: 13px;
+  margin-top: 10px;
+  min-height: 20px;
+  color: #6bff6b;
+}
+
+#action-resume-btn {
+  margin-top: 10px;
+  padding: 10px 30px;
+  font-size: 16px;
+  background-color: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#action-resume-btn:hover {
+  background-color: #3a8eef;
+}
+
 /* Menu overlay */
 #menu-overlay {
   position: fixed;
@@ -102,6 +223,14 @@ body.settings {
   padding: 2px 8px;
   border-radius: 3px;
   font-family: monospace;
+}
+
+#menu-content .menu-section {
+  margin-top: 15px;
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 #menu-content button {
@@ -217,10 +346,27 @@ body.settings {
   border-color: #4a9eff;
 }
 
+.readonly-field {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.readonly-value {
+  color: #fff;
+  font-family: monospace;
+}
+
 .param-help {
   font-size: 12px;
   color: #666;
   margin-top: 5px;
+}
+
+.description code {
+  background-color: #333;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 13px;
 }
 
 .button-group {
@@ -275,4 +421,65 @@ body.settings {
   display: block;
   background-color: #1a4a1a;
   color: #6bff6b;
+}
+
+/* Control Panel layout */
+.row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.field {
+  flex: 1;
+}
+
+.field label {
+  display: block;
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 5px;
+}
+
+.field input[type="text"],
+.field input[type="number"],
+.field select {
+  width: 100%;
+  padding: 10px;
+  font-size: 15px;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #fff;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.divider-text {
+  margin: 25px 0 20px 0;
+  padding: 15px;
+  background-color: #1a1a1a;
+  border-left: 3px solid #4a9eff;
+  color: #aaa;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.button-row {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.button-row button {
+  flex: 1;
+  padding: 12px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
 }

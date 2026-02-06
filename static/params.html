@@ -3,43 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Slideshow - Params</title>
+  <title>Control Panel</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="settings">
   <div class="container">
-    <h1>Slideshow</h1>
-    <p class="description">
-      A simple image slideshow viewer. Configure the display time below,
-      then click "Start Slideshow" to begin.
-    </p>
+    <h1>Control Panel</h1>
 
-    <form id="params-form" method="GET" action="/slides">
-      <h2>Params</h2>
-      <input type="hidden" id="index" name="index" value="0">
+    <input type="hidden" id="index" value="0">
 
-      <div class="param-group">
-        <label for="displayTimeMs">Display Time (ms)</label>
-        <input type="number" id="displayTimeMs" name="displayTimeMs" value="5000" min="100" step="100">
-        <p class="param-help">How long each image is shown (minimum 100ms)</p>
+    <!-- Immediate effect fields -->
+    <div class="row">
+      <div class="field">
+        <label for="displayTimeMs">Display time (ms)</label>
+        <input type="number" id="displayTimeMs" value="5000" min="100" step="100">
       </div>
-
-      <div class="param-group">
-        <label for="logLevel">Server Log Level</label>
+      <div class="field">
+        <label for="logLevel">Logging detail</label>
         <select id="logLevel">
-          <option value="INFO" selected>INFO — operational messages, warnings, and errors</option>
-          <option value="DEBUG">DEBUG — everything including verbose diagnostics</option>
+          <option value="INFO">info</option>
+          <option value="DEBUG">debug</option>
+          <option value="WARN">warn</option>
+          <option value="ERROR">error</option>
         </select>
-        <p class="param-help">Controls which messages appear in the server console and log file</p>
       </div>
+    </div>
 
-      <div id="status" class="status"></div>
+    <!-- Divider -->
+    <p class="divider-text">The following will take effect only after Saving and server re-boot</p>
 
-      <div class="button-group">
-        <button type="button" id="back-btn" class="btn-secondary">Back</button>
-        <button type="submit" class="btn-primary">Start Slideshow</button>
+    <!-- Source selection -->
+    <div class="row">
+      <div class="field">
+        <label for="source">Source</label>
+        <select id="source">
+          <option value="db">db</option>
+          <option value="folder">folder</option>
+        </select>
       </div>
-    </form>
+    </div>
+
+    <!-- DB fields -->
+    <div id="db-params">
+      <div class="field">
+        <label for="dbPath">Path to database</label>
+        <input type="text" id="dbPath" value="">
+      </div>
+      <div class="field">
+        <label for="whereClause">where clause</label>
+        <input type="text" id="whereClause" value="" placeholder="e.g. camera LIKE '%Canon%'">
+      </div>
+    </div>
+
+    <!-- Folder fields -->
+    <div id="folder-params" style="display:none;">
+      <div class="field">
+        <label for="imageFolderPath">Path to folder</label>
+        <input type="text" id="imageFolderPath" value="">
+      </div>
+    </div>
+
+    <!-- Common fields -->
+    <div class="row">
+      <div class="field">
+        <label for="maxDepth">max depth</label>
+        <input type="number" id="maxDepth" value="3" min="1">
+      </div>
+      <div class="field">
+        <label for="maxFiles">max files</label>
+        <input type="number" id="maxFiles" value="200" min="1">
+      </div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <div class="button-row">
+      <button type="button" id="save-btn" class="btn-secondary">Save</button>
+      <button type="button" id="resume-btn" class="btn-primary">Resume</button>
+    </div>
   </div>
 
   <script src="/static/params.js"></script>

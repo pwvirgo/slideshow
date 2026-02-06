@@ -1,7 +1,12 @@
 import { logger, LogLevel } from "./logger.ts";
 
+export type Source = "folder" | "db";
+
 export interface Params {
+  source: Source;
   imageFolderPath: string;
+  dbPath: string;
+  whereClause: string;
   displayTimeMs: number;
   maxDepth: number;
   maxFiles: number;
@@ -9,7 +14,10 @@ export interface Params {
 }
 
 const DEFAULT_PARAMS: Params = {
-  imageFolderPath: "/Users/pwv16/b/projects/slideshow/images",
+  source: "folder",
+  imageFolderPath: "/Users/m4book/a/projects/fotos/images",
+  dbPath: "../db/fotos.db",
+  whereClause: "",
   displayTimeMs: 5000,
   maxDepth: 3,
   maxFiles: 200,
@@ -22,7 +30,10 @@ export async function loadParams(paramsPath = "params.json"): Promise<Params> {
     const parsed = JSON.parse(text);
 
     const params: Params = {
+      source: parsed.source ?? DEFAULT_PARAMS.source,
       imageFolderPath: parsed.imageFolderPath ?? DEFAULT_PARAMS.imageFolderPath,
+      dbPath: parsed.dbPath ?? DEFAULT_PARAMS.dbPath,
+      whereClause: parsed.whereClause ?? DEFAULT_PARAMS.whereClause,
       displayTimeMs: parsed.displayTimeMs ?? DEFAULT_PARAMS.displayTimeMs,
       maxDepth: parsed.maxDepth ?? DEFAULT_PARAMS.maxDepth,
       maxFiles: parsed.maxFiles ?? DEFAULT_PARAMS.maxFiles,
@@ -30,8 +41,14 @@ export async function loadParams(paramsPath = "params.json"): Promise<Params> {
     };
 
     // Validate params
+    if (params.source !== "folder" && params.source !== "db") {
+      throw new Error('source must be "folder" or "db"');
+    }
     if (typeof params.imageFolderPath !== "string" || params.imageFolderPath.length === 0) {
       throw new Error("imageFolderPath must be a non-empty string");
+    }
+    if (typeof params.dbPath !== "string" || params.dbPath.length === 0) {
+      throw new Error("dbPath must be a non-empty string");
     }
     if (typeof params.displayTimeMs !== "number" || params.displayTimeMs < 100) {
       throw new Error("displayTimeMs must be a number >= 100");
@@ -43,7 +60,7 @@ export async function loadParams(paramsPath = "params.json"): Promise<Params> {
       throw new Error("maxFiles must be a number >= 1");
     }
 
-    logger.info(`Params loaded: imageFolderPath=${params.imageFolderPath}, displayTimeMs=${params.displayTimeMs}, maxDepth=${params.maxDepth}, maxFiles=${params.maxFiles}`);
+    logger.info(`Params loaded: source=${params.source}, displayTimeMs=${params.displayTimeMs}`);
     return params;
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) {

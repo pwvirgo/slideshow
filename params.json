@@ -1,5 +1,8 @@
 {
+  "source": "db",
   "imageFolderPath": "/Users/m4book/a/projects/fotos/images",
+  "dbPath": "../db/fotos.db",
+  "whereClause": "id between 12 and 16",
   "displayTimeMs": 5000,
   "maxDepth": 3,
   "maxFiles": 200,

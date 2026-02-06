@@ -1,32 +1,65 @@
-// params.js — Params page
-// Responsibilities: load default param values from server, validate inputs,
-// update server log level on change. Navigation is handled by native
-// form GET submission (action="/slides").
+// params.js — Control Panel
+// Display time and log level take effect immediately.
+// Other fields require Save + server restart.
 
 (function() {
-  const displayTimeMsInput = document.getElementById('displayTimeMs');
-  const logLevelSelect = document.getElementById('logLevel');
-  const indexInput = document.getElementById('index');
-  const statusEl = document.getElementById('status');
-  const backBtn = document.getElementById('back-btn');
+  var displayTimeMsInput = document.getElementById('displayTimeMs');
+  var logLevelSelect = document.getElementById('logLevel');
+  var sourceSelect = document.getElementById('source');
+  var dbPathInput = document.getElementById('dbPath');
+  var whereClauseInput = document.getElementById('whereClause');
+  var imageFolderPathInput = document.getElementById('imageFolderPath');
+  var maxDepthInput = document.getElementById('maxDepth');
+  var maxFilesInput = document.getElementById('maxFiles');
+  var indexInput = document.getElementById('index');
+  var statusEl = document.getElementById('status');
+  var saveBtn = document.getElementById('save-btn');
+  var resumeBtn = document.getElementById('resume-btn');
+  var dbParamsDiv = document.getElementById('db-params');
+  var folderParamsDiv = document.getElementById('folder-params');
 
   // Preserve image index from incoming URL
-  const urlParams = new URLSearchParams(window.location.search);
+  var urlParams = new URLSearchParams(window.location.search);
   indexInput.value = urlParams.get('index') || 0;
 
-  // Load current param values from URL or API
+  // Show/hide source-specific sections
+  function updateSourceUI(source) {
+    if (source === 'db') {
+      dbParamsDiv.style.display = 'block';
+      folderParamsDiv.style.display = 'none';
+    } else {
+      dbParamsDiv.style.display = 'none';
+      folderParamsDiv.style.display = 'block';
+    }
+  }
+
+  sourceSelect.addEventListener('change', function() {
+    updateSourceUI(sourceSelect.value);
+  });
+
+  // Load current param values
   async function loadParams() {
+    // Check URL for displayTimeMs
     if (urlParams.has('displayTimeMs')) {
       displayTimeMsInput.value = urlParams.get('displayTimeMs');
     }
 
     try {
-      const response = await fetch('/api/params');
-      const params = await response.json();
+      var response = await fetch('/api/params');
+      var params = await response.json();
+
       if (!urlParams.has('displayTimeMs')) {
         displayTimeMsInput.value = params.displayTimeMs;
       }
       logLevelSelect.value = params.logLevel;
+      sourceSelect.value = params.source || 'folder';
+      dbPathInput.value = params.dbPath || '';
+      whereClauseInput.value = params.whereClause || '';
+      imageFolderPathInput.value = params.imageFolderPath || '';
+      maxDepthInput.value = params.maxDepth || 3;
+      maxFilesInput.value = params.maxFiles || 200;
+
+      updateSourceUI(params.source || 'folder');
     } catch (error) {
       console.error('Failed to load params:', error);
     }
@@ -36,15 +69,15 @@
   function showStatus(message, isError) {
     statusEl.textContent = message;
     statusEl.className = 'status ' + (isError ? 'error' : 'success');
-    setTimeout(() => {
+    setTimeout(function() {
       statusEl.className = 'status';
-    }, 3000);
+    }, 5000);
   }
 
-  // Update log level on server when changed
-  logLevelSelect.addEventListener('change', async () => {
+  // Log level changes immediately
+  logLevelSelect.addEventListener('change', async function() {
     try {
-      const response = await fetch('/api/logLevel', {
+      var response = await fetch('/api/logLevel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ logLevel: logLevelSelect.value }),
@@ -55,20 +88,42 @@
         showStatus('Failed to update log level', true);
       }
     } catch (error) {
-      console.error('Failed to set log level:', error);
       showStatus('Failed to update log level', true);
     }
   });
 
-  // Back button: return to slideshow at same position
-  backBtn.addEventListener('click', () => {
-    if (document.referrer && document.referrer !== window.location.href) {
-      window.history.back();
-    } else {
-      window.location.href = '/slides';
+  // Save all params to params.json
+  saveBtn.addEventListener('click', async function() {
+    try {
+      var response = await fetch('/api/params', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: sourceSelect.value,
+          dbPath: dbPathInput.value,
+          whereClause: whereClauseInput.value,
+          imageFolderPath: imageFolderPathInput.value,
+          maxDepth: parseInt(maxDepthInput.value) || 3,
+          maxFiles: parseInt(maxFilesInput.value) || 200,
+        }),
+      });
+      if (response.ok) {
+        showStatus('Saved. Restart server to apply.', false);
+      } else {
+        var data = await response.json();
+        showStatus(data.error || 'Failed to save', true);
+      }
+    } catch (error) {
+      showStatus('Failed to save', true);
     }
   });
 
-  // Initialize
+  // Resume returns to slideshow with current display time
+  resumeBtn.addEventListener('click', function() {
+    var idx = indexInput.value || 0;
+    var dt = displayTimeMsInput.value || 5000;
+    window.location.href = '/slides?index=' + idx + '&displayTimeMs=' + dt;
+  });
+
   loadParams();
 })();
