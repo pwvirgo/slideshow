@@ -1,8 +1,7 @@
 // app.js — Slideshow viewer
 // Responsibilities: fetch image list, display images, handle slideshow
 // controls (pause, resume, next, prev, menu).
-// In DB mode: also fetch image metadata and record user actions via
-// an action panel that pauses the slideshow.
+// In DB mode: menu shows d/f options, which open action forms.
 
 (function app() {
   // DOM elements
@@ -11,18 +10,29 @@
   var loadingEl = document.getElementById('loading');
   var pauseIndicator = document.getElementById('pause-indicator');
   var menuOverlay = document.getElementById('menu-overlay');
+  var dbActionsEl = document.getElementById('db-actions');
   var resumeBtn = document.getElementById('resume-btn');
   var imageCounter = document.getElementById('image-counter');
   var paramsLink = document.getElementById('params-link');
   var actionIndicator = document.getElementById('action-indicator');
 
-  // Action panel elements
-  var actionOverlay = document.getElementById('action-overlay');
-  var actionFilename = document.getElementById('action-filename');
-  var actionNoteInput = document.getElementById('action-note');
-  var actionStatus = document.getElementById('action-status');
-  var actionResumeBtn = document.getElementById('action-resume-btn');
-  var actionButtons = document.querySelectorAll('.action-btn');
+  // Delete form elements
+  var deleteOverlay = document.getElementById('delete-overlay');
+  var deleteFilename = document.getElementById('delete-filename');
+  var deleteDate = document.getElementById('delete-date');
+  var deleteNote = document.getElementById('delete-note');
+  var deleteStatus = document.getElementById('delete-status');
+  var deleteCancelBtn = document.getElementById('delete-cancel-btn');
+  var deleteSubmitBtn = document.getElementById('delete-submit-btn');
+
+  // Favorite form elements
+  var favoriteOverlay = document.getElementById('favorite-overlay');
+  var favoriteFilename = document.getElementById('favorite-filename');
+  var favoriteDate = document.getElementById('favorite-date');
+  var favoriteNote = document.getElementById('favorite-note');
+  var favoriteStatus = document.getElementById('favorite-status');
+  var favoriteCancelBtn = document.getElementById('favorite-cancel-btn');
+  var favoriteSubmitBtn = document.getElementById('favorite-submit-btn');
 
   // Parse URL params
   var urlParams = new URLSearchParams(window.location.search);
@@ -34,10 +44,12 @@
   var displayTimeMs = parseInt(urlParams.get('displayTimeMs')) || 5000;
   var isPaused = false;
   var isMenuOpen = false;
-  var isActionPanelOpen = false;
+  var currentForm = null; // 'delete', 'favorite', or null
+  var hasImageError = false; // true when image failed to load
   var timer = null;
   var currentFotoId = null;
   var currentFilename = '';
+  var currentDtCreated = '';
 
   // Show a brief toast for action feedback
   function showActionToast(message) {
@@ -57,26 +69,36 @@
     return await response.json();
   }
 
-  // DB mode: fetch the foto_id and name for the current image index
+  // DB mode: fetch the foto_id, name, and dtCreated for the current image index
   async function fetchImageInfo(index) {
     if (source !== 'db') return;
+    if (index < 0 || index >= images.length) return;
     try {
       var response = await fetch('/api/imageInfo/' + index);
+      if (!response.ok) {
+        // Index out of bounds or server error — silently ignore
+        currentFotoId = null;
+        currentFilename = '';
+        currentDtCreated = '';
+        return;
+      }
       var data = await response.json();
       currentFotoId = data.id;
       currentFilename = data.name || '';
-    } catch (error) {
-      console.error('Failed to fetch image info:', error);
+      currentDtCreated = data.dtCreated || '';
+    } catch {
+      // Network error — silently reset state
       currentFotoId = null;
       currentFilename = '';
+      currentDtCreated = '';
     }
   }
 
   // DB mode: record an action on the current image
-  async function recordAction(act, note) {
+  async function recordAction(act, note, statusEl) {
     if (source !== 'db' || currentFotoId === null) {
       showActionToast('Actions only available in DB mode');
-      return;
+      return false;
     }
     try {
       var response = await fetch('/api/actions', {
@@ -85,59 +107,36 @@
         body: JSON.stringify({ fotoId: currentFotoId, act: act, note: note || '' }),
       });
       if (response.ok) {
-        actionStatus.textContent = 'Recorded: ' + act;
-        actionStatus.style.color = '#6bff6b';
+        statusEl.textContent = 'Recorded: ' + act;
+        statusEl.className = 'action-status success';
+        return true;
       } else {
-        actionStatus.textContent = 'Failed to record: ' + act;
-        actionStatus.style.color = '#ff6b6b';
+        statusEl.textContent = 'Failed to record';
+        statusEl.className = 'action-status error';
+        return false;
       }
     } catch (error) {
       console.error('Failed to record action:', error);
-      actionStatus.textContent = 'Error recording action';
-      actionStatus.style.color = '#ff6b6b';
+      statusEl.textContent = 'Error recording action';
+      statusEl.className = 'action-status error';
+      return false;
     }
-  }
-
-  // Open action panel — pauses slideshow and shows filename + note input
-  function openActionPanel() {
-    if (source !== 'db') {
-      showActionToast('Actions only available in DB mode');
-      return;
-    }
-    if (isActionPanelOpen) return;
-
-    // Pause if not already paused
-    if (!isPaused) {
-      isPaused = true;
-      pauseIndicator.classList.add('visible');
-      clearTimeout(timer);
-    }
-
-    isActionPanelOpen = true;
-    actionFilename.textContent = currentFilename || 'Unknown file';
-    actionNoteInput.value = '';
-    actionStatus.textContent = '';
-    // Clear any previously selected button
-    actionButtons.forEach(function (btn) { btn.classList.remove('selected'); });
-    actionOverlay.classList.add('visible');
-  }
-
-  // Close action panel — stays paused, user must hit Space or Resume to continue
-  function closeActionPanel() {
-    if (!isActionPanelOpen) return;
-    isActionPanelOpen = false;
-    actionOverlay.classList.remove('visible');
   }
 
   // Display an image by index
   function showImage(index) {
+    // Ensure index is within bounds
+    if (images.length === 0) return;
+    if (index < 0 || index >= images.length) {
+      index = 0;
+    }
     currentIndex = index;
     var imagePath = '/images/' + images[index];
     currentImage.src = imagePath;
     currentImage.style.display = 'block';
 
     imageCounter.textContent = (index + 1) + ' / ' + images.length;
-    paramsLink.href = '/params?index=' + index + '&displayTimeMs=' + displayTimeMs;
+    paramsLink.href = '/params?displayTimeMs=' + displayTimeMs + '&index=' + index;
 
     // Preload next image
     var nextIndex = (index + 1) % images.length;
@@ -151,7 +150,7 @@
 
   function scheduleNext() {
     clearTimeout(timer);
-    if (!isPaused && !isMenuOpen && !isActionPanelOpen) {
+    if (!isPaused && !isMenuOpen && !currentForm) {
       timer = setTimeout(function () {
         var nextIndex = (currentIndex + 1) % images.length;
         showImage(nextIndex);
@@ -167,105 +166,203 @@
     showImage((currentIndex + 1) % images.length);
   }
 
-  function togglePause() {
-    isPaused = !isPaused;
-    pauseIndicator.classList.toggle('visible', isPaused);
+  function pause() {
     if (!isPaused) {
-      scheduleNext();
-    } else {
+      isPaused = true;
+      pauseIndicator.classList.add('visible');
       clearTimeout(timer);
-      console.log('Paused on image ' + currentIndex + ': ' + images[currentIndex]);
     }
+  }
+
+  function resume() {
+    if (isPaused) {
+      isPaused = false;
+      pauseIndicator.classList.remove('visible');
+      scheduleNext();
+    }
+  }
+
+  function togglePause() {
+    if (isPaused) {
+      resume();
+    } else {
+      pause();
+    }
+  }
+
+  // Menu functions
+  function openMenu() {
+    if (isMenuOpen) return;
+    isMenuOpen = true;
+    menuOverlay.classList.add('visible');
+    clearTimeout(timer);
+    // Pause the slideshow when menu opens
+    pause();
+  }
+
+  function closeMenu() {
+    if (!isMenuOpen) return;
+    isMenuOpen = false;
+    menuOverlay.classList.remove('visible');
+    // Stay paused after closing menu
   }
 
   function toggleMenu() {
-    isMenuOpen = !isMenuOpen;
-    menuOverlay.classList.toggle('visible', isMenuOpen);
     if (isMenuOpen) {
-      clearTimeout(timer);
-    } else if (!isPaused) {
-      scheduleNext();
+      closeMenu();
+    } else {
+      openMenu();
     }
   }
 
-  // Action button clicks in the panel
-  actionButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var act = btn.getAttribute('data-act');
-      var note = actionNoteInput.value.trim();
-      // Highlight the clicked button
-      actionButtons.forEach(function (b) { b.classList.remove('selected'); });
-      btn.classList.add('selected');
-      recordAction(act, note);
-    });
+  // Action form functions
+  function openDeleteForm() {
+    if (source !== 'db') return;
+    closeMenu();
+    currentForm = 'delete';
+    deleteFilename.textContent = currentFilename || 'Unknown';
+    deleteDate.textContent = currentDtCreated || 'Unknown';
+    deleteNote.value = '';
+    deleteStatus.textContent = '';
+    deleteStatus.className = 'action-status';
+    deleteOverlay.classList.add('visible');
+  }
+
+  function closeDeleteForm() {
+    currentForm = null;
+    deleteOverlay.classList.remove('visible');
+    // Stay paused
+  }
+
+  function openFavoriteForm() {
+    if (source !== 'db') return;
+    closeMenu();
+    currentForm = 'favorite';
+    favoriteFilename.textContent = currentFilename || 'Unknown';
+    favoriteDate.textContent = currentDtCreated || 'Unknown';
+    favoriteNote.value = '';
+    favoriteStatus.textContent = '';
+    favoriteStatus.className = 'action-status';
+    favoriteOverlay.classList.add('visible');
+  }
+
+  function closeFavoriteForm() {
+    currentForm = null;
+    favoriteOverlay.classList.remove('visible');
+    // Stay paused
+  }
+
+  // Button handlers for Delete form
+  deleteCancelBtn.addEventListener('click', function () {
+    closeDeleteForm();
   });
 
-  // Action panel resume button
-  actionResumeBtn.addEventListener('click', function () {
-    closeActionPanel();
-    if (isPaused) {
-      togglePause();
+  deleteSubmitBtn.addEventListener('click', async function () {
+    var note = deleteNote.value.trim();
+    var success = await recordAction('delete', note, deleteStatus);
+    if (success) {
+      setTimeout(closeDeleteForm, 800);
     }
+  });
+
+  // Button handlers for Favorite form
+  favoriteCancelBtn.addEventListener('click', function () {
+    closeFavoriteForm();
+  });
+
+  favoriteSubmitBtn.addEventListener('click', async function () {
+    var note = favoriteNote.value.trim();
+    var success = await recordAction('favorite', note, favoriteStatus);
+    if (success) {
+      setTimeout(closeFavoriteForm, 800);
+    }
+  });
+
+  // Menu resume button
+  resumeBtn.addEventListener('click', function () {
+    closeMenu();
+    resume();
   });
 
   // Keyboard handlers
   document.addEventListener('keydown', function (e) {
     if (images.length === 0) return;
 
-    // If action panel is open, handle keys within it
-    if (isActionPanelOpen) {
-      // Let typing in the note input work normally
-      if (document.activeElement === actionNoteInput) {
+    // If Delete form is open
+    if (currentForm === 'delete') {
+      if (document.activeElement === deleteNote) {
         if (e.key === 'Escape') {
           e.preventDefault();
-          closeActionPanel();
+          closeDeleteForm();
         }
         return;
       }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeDeleteForm();
+      }
+      return;
+    }
+
+    // If Favorite form is open
+    if (currentForm === 'favorite') {
+      if (document.activeElement === favoriteNote) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeFavoriteForm();
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeFavoriteForm();
+      }
+      return;
+    }
+
+    // If menu is open
+    if (isMenuOpen) {
       switch (e.key) {
-        case 'f':
-          e.preventDefault();
-          var noteF = actionNoteInput.value.trim();
-          actionButtons.forEach(function (b) { b.classList.remove('selected'); });
-          document.querySelector('.action-btn[data-act="favorite"]').classList.add('selected');
-          recordAction('favorite', noteF);
-          break;
-        case 'd':
-          e.preventDefault();
-          var noteD = actionNoteInput.value.trim();
-          actionButtons.forEach(function (b) { b.classList.remove('selected'); });
-          document.querySelector('.action-btn[data-act="delete"]').classList.add('selected');
-          recordAction('delete', noteD);
-          break;
-        case 'r':
-          e.preventDefault();
-          var noteR = actionNoteInput.value.trim();
-          actionButtons.forEach(function (b) { b.classList.remove('selected'); });
-          document.querySelector('.action-btn[data-act="rotate"]').classList.add('selected');
-          recordAction('rotate', noteR);
-          break;
         case ' ':
           e.preventDefault();
-          closeActionPanel();
-          if (isPaused) togglePause();
+          closeMenu();
+          resume();
           break;
         case 'Escape':
           e.preventDefault();
-          closeActionPanel();
+          closeMenu();
+          break;
+        case 'd':
+        case 'D':
+          if (source === 'db') {
+            e.preventDefault();
+            openDeleteForm();
+          }
+          break;
+        case 'f':
+        case 'F':
+          if (source === 'db') {
+            e.preventDefault();
+            openFavoriteForm();
+          }
           break;
       }
       return;
     }
 
+    // Normal slideshow keys
     switch (e.key) {
       case ' ':
         e.preventDefault();
-        if (isMenuOpen) toggleMenu();
-        togglePause();
+        if (hasImageError) {
+          retryImage();
+        } else {
+          togglePause();
+        }
         break;
       case 'Escape':
         e.preventDefault();
-        toggleMenu();
+        openMenu();
         break;
       case 'ArrowLeft':
         e.preventDefault();
@@ -275,21 +372,43 @@
         e.preventDefault();
         nextImage();
         break;
-      // Action keys: open the action panel
-      case 'f':
-      case 'd':
-      case 'r':
-        e.preventDefault();
-        openActionPanel();
-        break;
     }
   });
 
-  // Menu resume button
-  resumeBtn.addEventListener('click', function () {
-    if (isMenuOpen) toggleMenu();
-    if (isPaused) togglePause();
-  });
+  // Show error message with styling
+  function showError(title, suggestion) {
+    loadingEl.innerHTML = '<div style="text-align:center;max-width:500px;padding:20px;">' +
+      '<div style="color:#ff6b6b;font-size:18px;margin-bottom:15px;">' + title + '</div>' +
+      '<div style="color:#aaa;font-size:14px;">' + suggestion + '</div>' +
+      '</div>';
+  }
+
+  // Handle image load error (e.g., SSD disconnected)
+  function handleImageError() {
+    hasImageError = true;
+    pause();
+    currentImage.style.display = 'none';
+    loadingEl.style.display = 'block';
+    showError('Image failed to load', 'The volume may have been disconnected. Reconnect and press Space to retry.');
+  }
+
+  // Handle successful image load
+  function handleImageLoad() {
+    if (hasImageError) {
+      hasImageError = false;
+      loadingEl.style.display = 'none';
+      currentImage.style.display = 'block';
+    }
+  }
+
+  // Retry loading current image after error
+  function retryImage() {
+    if (!hasImageError) return;
+    loadingEl.innerHTML = 'Retrying...';
+    // Force reload by adding timestamp to URL
+    var imagePath = '/images/' + images[currentIndex] + '?t=' + Date.now();
+    currentImage.src = imagePath;
+  }
 
   // Initialize
   async function init() {
@@ -298,21 +417,36 @@
       images = data.images;
       source = data.source || 'folder';
 
+      // Show/hide DB actions in menu based on source
+      if (source === 'db' && dbActionsEl) {
+        dbActionsEl.style.display = 'block';
+      }
+
       if (!urlParams.has('displayTimeMs')) {
         displayTimeMs = data.displayTimeMs;
       }
 
-      if (images.length === 0) {
-        loadingEl.textContent = 'No images found';
+      // Check for error info from server
+      if (data.errorInfo) {
+        showError(data.errorInfo.error, data.errorInfo.suggestion);
         return;
       }
+
+      if (images.length === 0) {
+        showError('No images found', 'Check params.json settings and restart the server.');
+        return;
+      }
+
+      // Set up image event handlers for runtime disconnections and recovery
+      currentImage.addEventListener('error', handleImageError);
+      currentImage.addEventListener('load', handleImageLoad);
 
       loadingEl.style.display = 'none';
       var startIndex = Math.min(currentIndex, images.length - 1);
       showImage(startIndex);
     } catch (error) {
       console.error('Failed to fetch images:', error);
-      loadingEl.textContent = 'Failed to load images';
+      showError('Failed to load images', 'Check that the server is running.');
     }
   }
 

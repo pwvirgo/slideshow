@@ -63,7 +63,15 @@ function fileExists(path: string): boolean {
   }
 }
 
-export function queryImages(db: DatabaseSync, whereClause: string, maxFiles: number): DbImage[] {
+export interface QueryResult {
+  images: DbImage[];
+  totalFromDb: number;
+  skippedMissing: number;
+}
+
+export function queryImages(db: DatabaseSync, whereClause: string,
+   maxFiles: number): QueryResult {
+
   validateWhereClause(whereClause);
 
   const where = whereClause.trim() === "" ? "" : `WHERE ${whereClause}`;
@@ -94,7 +102,42 @@ export function queryImages(db: DatabaseSync, whereClause: string, maxFiles: num
     logger.warn(`Skipped ${skipped} images with missing files (of ${allImages.length} from DB)`);
   }
   logger.info(`DB query returned ${images.length} available images`);
-  return images;
+
+  return {
+    images,
+    totalFromDb: allImages.length,
+    skippedMissing: skipped,
+  };
+}
+
+export interface ImageInfo {
+  id: number;
+  name: string;
+  path: string;
+  dtCreated: string | null;
+}
+
+export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null {
+  const stmt = db.prepare(
+    "SELECT id, path, name, dt_taken, dt_created FROM fotos WHERE id = ?"
+  );
+  const row = stmt.get(fotoId) as FotoRow | undefined;
+  if (!row) return null;
+
+  // Return the earliest date from dt_taken and dt_created
+  let earliest: string | null = null;
+  if (row.dt_taken && row.dt_created) {
+    earliest = row.dt_taken < row.dt_created ? row.dt_taken : row.dt_created;
+  } else {
+    earliest = row.dt_taken || row.dt_created;
+  }
+
+  return {
+    id: row.id,
+    name: row.name,
+    path: `${row.path}/${row.name}`,
+    dtCreated: earliest,
+  };
 }
 
 export function insertAction(db: DatabaseSync, fotoId: number, act: string, note: string): void {

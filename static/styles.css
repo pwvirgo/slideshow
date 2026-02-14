@@ -1,3 +1,31 @@
+/* ===========================================
+   CSS Variables
+   =========================================== */
+:root {
+  --accent: #4a9eff;
+  --accent-hover: #3a8eef;
+  --bg-page: #000;
+  --bg-panel: #1a1a1a;
+  --bg-input: #222;
+  --bg-overlay: rgba(0, 0, 0, 0.8);
+  --border: #333;
+  --border-light: #444;
+  --border-hover: #555;
+  --text: #fff;
+  --text-muted: #aaa;
+  --text-dim: #888;
+  --text-faint: #666;
+  --success: #6bff6b;
+  --success-bg: #1a4a1a;
+  --error: #ff6b6b;
+  --error-bg: #4a1a1a;
+  --radius: 5px;
+  --radius-lg: 10px;
+}
+
+/* ===========================================
+   Base Reset & Typography
+   =========================================== */
 * {
   margin: 0;
   padding: 0;
@@ -7,7 +35,9 @@
 html, body {
   width: 100%;
   height: 100%;
-  background-color: #000;
+  background-color: var(--bg-page);
+  font-family: sans-serif;
+  color: var(--text);
 }
 
 body.slideshow {
@@ -20,6 +50,157 @@ body.settings {
   overflow: auto;
 }
 
+/* ===========================================
+   Reusable Components
+   =========================================== */
+
+/* Buttons */
+.btn {
+  padding: 12px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: var(--text);
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+.btn-secondary {
+  background-color: var(--border);
+  color: var(--text);
+}
+
+.btn-secondary:hover {
+  background-color: var(--border-light);
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 14px;
+  background-color: var(--border);
+  color: var(--text);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.btn-small:hover,
+.btn-small.selected {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Inputs */
+.input {
+  width: 100%;
+  padding: 10px;
+  font-size: 15px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Overlays */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-overlay);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.overlay.visible {
+  display: flex;
+}
+
+/* Panels */
+.panel {
+  background-color: var(--bg-panel);
+  padding: 30px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  max-width: 450px;
+}
+
+.panel h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.panel p {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+/* Indicators (toast-style notifications) */
+.indicator {
+  position: fixed;
+  top: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  display: none;
+  z-index: 100;
+}
+
+.indicator.visible {
+  display: block;
+}
+
+/* Keyboard key styling */
+.key {
+  background-color: var(--border);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+/* Status messages */
+.status {
+  margin-top: 20px;
+  padding: 10px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  display: none;
+}
+
+.status.error {
+  display: block;
+  background-color: var(--error-bg);
+  color: var(--error);
+}
+
+.status.success {
+  display: block;
+  background-color: var(--success-bg);
+  color: var(--success);
+}
+
+/* ===========================================
+   Slideshow Page
+   =========================================== */
 #slideshow-container {
   width: 100%;
   height: 100%;
@@ -39,257 +220,115 @@ body.settings {
   display: none;
 }
 
-/* Pause indicator */
-#pause-indicator {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: 5px;
-  font-family: sans-serif;
-  font-size: 16px;
-  display: none;
-  z-index: 100;
-}
-
-#pause-indicator.visible {
-  display: block;
-}
-
-/* Action toast indicator */
-#action-indicator {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(74, 158, 255, 0.85);
-  color: #fff;
-  padding: 8px 20px;
-  border-radius: 5px;
-  font-family: sans-serif;
-  font-size: 16px;
-  display: none;
-  z-index: 100;
-}
-
-#action-indicator.visible {
-  display: block;
-}
-
-/* Action overlay panel */
-#action-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.75);
-  display: none;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 60px;
-  z-index: 150;
-}
-
-#action-overlay.visible {
-  display: flex;
-}
-
-#action-panel {
-  background-color: #1a1a1a;
-  padding: 25px 30px;
-  border-radius: 10px;
-  text-align: center;
-  color: #fff;
-  font-family: sans-serif;
-  min-width: 350px;
-  max-width: 500px;
-}
-
-#action-filename {
-  font-size: 14px;
-  color: #aaa;
-  margin-bottom: 15px;
-  word-break: break-all;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-bottom: 5px;
-}
-
-.action-btn {
-  padding: 8px 16px;
-  font-size: 14px;
-  background-color: #333;
-  color: #fff;
-  border: 1px solid #555;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.action-btn:hover {
-  background-color: #4a9eff;
-  border-color: #4a9eff;
-}
-
-.action-btn.selected {
-  background-color: #4a9eff;
-  border-color: #4a9eff;
-}
-
-#action-panel input[type="text"] {
-  width: 100%;
-  padding: 10px;
-  font-size: 14px;
-  background-color: #222;
-  border: 1px solid #444;
-  border-radius: 5px;
-  color: #fff;
-}
-
-#action-panel input[type="text"]:focus {
-  outline: none;
-  border-color: #4a9eff;
-}
-
-#action-status {
-  font-size: 13px;
-  margin-top: 10px;
-  min-height: 20px;
-  color: #6bff6b;
-}
-
-#action-resume-btn {
-  margin-top: 10px;
-  padding: 10px 30px;
-  font-size: 16px;
-  background-color: #4a9eff;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-#action-resume-btn:hover {
-  background-color: #3a8eef;
-}
-
-/* Menu overlay */
-#menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.85);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-}
-
-#menu-overlay.visible {
-  display: flex;
-}
-
-#menu-content {
-  background-color: #1a1a1a;
-  padding: 40px;
-  border-radius: 10px;
-  text-align: center;
-  color: #fff;
-  font-family: sans-serif;
-  max-width: 400px;
-}
-
-#menu-content h2 {
-  margin-bottom: 20px;
-  font-size: 24px;
-}
-
-#menu-content p {
-  margin-bottom: 10px;
-  font-size: 14px;
-  color: #ccc;
-}
-
-#menu-content .key {
-  background-color: #333;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-family: monospace;
-}
-
-#menu-content .menu-section {
-  margin-top: 15px;
-  font-size: 12px;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-#menu-content button {
-  margin-top: 20px;
-  padding: 10px 30px;
-  font-size: 16px;
-  background-color: #4a9eff;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-#menu-content button:hover {
-  background-color: #3a8eef;
-}
-
-#menu-content .menu-link {
-  margin-top: 15px;
-}
-
-#menu-content .menu-link a {
-  color: #4a9eff;
-  text-decoration: none;
-}
-
-#menu-content .menu-link a:hover {
-  text-decoration: underline;
-}
-
-/* Loading state */
 #loading {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: #fff;
-  font-family: sans-serif;
   font-size: 18px;
 }
 
-/* Image counter */
+#pause-indicator {
+  right: 20px;
+  padding: 10px 20px;
+}
+
+#action-indicator {
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(74, 158, 255, 0.85);
+  z-index: 250;
+}
+
 #image-counter {
   position: fixed;
   bottom: 20px;
   left: 20px;
   background-color: rgba(0, 0, 0, 0.7);
-  color: #fff;
   padding: 8px 15px;
-  border-radius: 5px;
-  font-family: sans-serif;
+  border-radius: var(--radius);
   font-size: 14px;
   z-index: 100;
 }
 
-/* ===========================================
-   Slides/Settings Page
-   =========================================== */
+/* Action forms (Delete, Favorite) */
+.action-form {
+  min-width: 350px;
+  text-align: left;
+}
 
+.action-form h2 {
+  text-align: center;
+}
+
+.form-info {
+  margin-bottom: 20px;
+}
+
+.form-info p {
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.form-info span {
+  color: var(--text-muted);
+}
+
+.form-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.form-buttons button {
+  flex: 1;
+}
+
+.action-status {
+  font-size: 13px;
+  margin-top: 10px;
+  min-height: 20px;
+  text-align: center;
+}
+
+.action-status.success {
+  color: var(--success);
+}
+
+.action-status.error {
+  color: var(--error);
+}
+
+textarea.input {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Menu overlay */
+.menu-section {
+  margin-top: 15px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.menu-link {
+  margin-top: 15px;
+}
+
+.menu-link a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.menu-link a:hover {
+  text-decoration: underline;
+}
+
+/* ===========================================
+   Settings/Params Page
+   =========================================== */
 .container {
   max-width: 600px;
   margin: 0 auto;
@@ -298,132 +337,10 @@ body.settings {
 
 .container h1 {
   font-size: 28px;
-  margin-bottom: 10px;
-  color: #4a9eff;
-}
-
-.description {
-  color: #aaa;
-  font-size: 14px;
-  line-height: 1.6;
   margin-bottom: 30px;
+  color: var(--accent);
 }
 
-.container h2 {
-  font-size: 18px;
-  margin-bottom: 20px;
-  color: #ccc;
-  border-bottom: 1px solid #333;
-  padding-bottom: 10px;
-}
-
-.param-group {
-  margin-bottom: 20px;
-}
-
-.param-group label {
-  display: block;
-  font-size: 14px;
-  color: #888;
-  margin-bottom: 5px;
-}
-
-.param-group input[type="text"],
-.param-group input[type="number"],
-.param-group select {
-  width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  background-color: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 5px;
-  color: #fff;
-}
-
-.param-group input:focus,
-.param-group select:focus {
-  outline: none;
-  border-color: #4a9eff;
-}
-
-.readonly-field {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.readonly-value {
-  color: #fff;
-  font-family: monospace;
-}
-
-.param-help {
-  font-size: 12px;
-  color: #666;
-  margin-top: 5px;
-}
-
-.description code {
-  background-color: #333;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 13px;
-}
-
-.button-group {
-  display: flex;
-  gap: 15px;
-  margin-top: 30px;
-}
-
-.button-group button {
-  flex: 1;
-  padding: 15px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-primary {
-  background-color: #4a9eff;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background-color: #3a8eef;
-}
-
-.btn-secondary {
-  background-color: #333;
-  color: #fff;
-}
-
-.btn-secondary:hover {
-  background-color: #444;
-}
-
-.status {
-  margin-top: 20px;
-  padding: 10px;
-  border-radius: 5px;
-  font-size: 14px;
-  display: none;
-}
-
-.status.error {
-  display: block;
-  background-color: #4a1a1a;
-  color: #ff6b6b;
-}
-
-.status.success {
-  display: block;
-  background-color: #1a4a1a;
-  color: #6bff6b;
-}
-
-/* Control Panel layout */
 .row {
   display: flex;
   gap: 20px;
@@ -437,34 +354,16 @@ body.settings {
 .field label {
   display: block;
   font-size: 14px;
-  color: #888;
+  color: var(--text-dim);
   margin-bottom: 5px;
-}
-
-.field input[type="text"],
-.field input[type="number"],
-.field select {
-  width: 100%;
-  padding: 10px;
-  font-size: 15px;
-  background-color: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 5px;
-  color: #fff;
-}
-
-.field input:focus,
-.field select:focus {
-  outline: none;
-  border-color: #4a9eff;
 }
 
 .divider-text {
   margin: 25px 0 20px 0;
   padding: 15px;
-  background-color: #1a1a1a;
-  border-left: 3px solid #4a9eff;
-  color: #aaa;
+  background-color: var(--bg-panel);
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
   font-size: 14px;
   font-style: italic;
 }
@@ -477,9 +376,4 @@ body.settings {
 
 .button-row button {
   flex: 1;
-  padding: 12px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
 }

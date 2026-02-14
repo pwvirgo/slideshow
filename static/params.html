@@ -16,11 +16,11 @@
     <div class="row">
       <div class="field">
         <label for="displayTimeMs">Display time (ms)</label>
-        <input type="number" id="displayTimeMs" value="5000" min="100" step="100">
+        <input type="number" id="displayTimeMs" class="input" value="5000" min="100" step="100">
       </div>
       <div class="field">
         <label for="logLevel">Logging detail</label>
-        <select id="logLevel">
+        <select id="logLevel" class="input">
           <option value="INFO">info</option>
           <option value="DEBUG">debug</option>
           <option value="WARN">warn</option>
@@ -36,7 +36,7 @@
     <div class="row">
       <div class="field">
         <label for="source">Source</label>
-        <select id="source">
+        <select id="source" class="input">
           <option value="db">db</option>
           <option value="folder">folder</option>
         </select>
@@ -47,11 +47,11 @@
     <div id="db-params">
       <div class="field">
         <label for="dbPath">Path to database</label>
-        <input type="text" id="dbPath" value="">
+        <input type="text" id="dbPath" class="input" value="">
       </div>
       <div class="field">
         <label for="whereClause">where clause</label>
-        <input type="text" id="whereClause" value="" placeholder="e.g. camera LIKE '%Canon%'">
+        <input type="text" id="whereClause" class="input" value="" placeholder="e.g. camera LIKE '%Canon%'">
       </div>
     </div>
 
@@ -59,7 +59,7 @@
     <div id="folder-params" style="display:none;">
       <div class="field">
         <label for="imageFolderPath">Path to folder</label>
-        <input type="text" id="imageFolderPath" value="">
+        <input type="text" id="imageFolderPath" class="input" value="">
       </div>
     </div>
 
@@ -67,19 +67,19 @@
     <div class="row">
       <div class="field">
         <label for="maxDepth">max depth</label>
-        <input type="number" id="maxDepth" value="3" min="1">
+        <input type="number" id="maxDepth" class="input" value="3" min="1">
       </div>
       <div class="field">
         <label for="maxFiles">max files</label>
-        <input type="number" id="maxFiles" value="200" min="1">
+        <input type="number" id="maxFiles" class="input" value="200" min="1">
       </div>
     </div>
 
     <div id="status" class="status"></div>
 
     <div class="button-row">
-      <button type="button" id="save-btn" class="btn-secondary">Save</button>
-      <button type="button" id="resume-btn" class="btn-primary">Resume</button>
+      <button type="button" id="save-btn" class="btn btn-secondary">Save</button>
+      <button type="button" id="resume-btn" class="btn btn-primary">Resume</button>
     </div>
   </div>
 

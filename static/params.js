@@ -122,7 +122,7 @@
   resumeBtn.addEventListener('click', function() {
     var idx = indexInput.value || 0;
     var dt = displayTimeMsInput.value || 5000;
-    window.location.href = '/slides?index=' + idx + '&displayTimeMs=' + dt;
+    window.location.href = '/slides?displayTimeMs=' + dt + '&index=' + idx;
   });
 
   loadParams();

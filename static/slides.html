@@ -13,43 +13,67 @@
     <img id="preload-image" alt="">
   </div>
 
-  <div id="pause-indicator">PAUSED</div>
+  <div id="pause-indicator" class="indicator">PAUSED</div>
 
-  <div id="action-indicator"></div>
+  <div id="action-indicator" class="indicator"></div>
 
   <div id="image-counter"></div>
 
-  <!-- Action panel: shown when user presses an action key in DB mode -->
-  <div id="action-overlay">
-    <div id="action-panel">
-      <p id="action-filename"></p>
-      <div class="action-buttons">
-        <button class="action-btn" data-act="favorite">f — Favorite</button>
-        <button class="action-btn" data-act="delete">d — Delete</button>
-        <button class="action-btn" data-act="rotate">r — Rotate</button>
-      </div>
-      <div class="param-group" style="margin-top:15px;">
-        <label for="action-note" style="color:#888;font-size:13px;">Note (optional)</label>
-        <input type="text" id="action-note" placeholder="Add a note...">
-      </div>
-      <div id="action-status"></div>
-      <button id="action-resume-btn">Resume</button>
-    </div>
-  </div>
-
-  <div id="menu-overlay">
-    <div id="menu-content">
+  <!-- Main menu: shown when user presses Esc -->
+  <div id="menu-overlay" class="overlay">
+    <div id="menu-content" class="panel">
       <h2>Slideshow Menu</h2>
       <p><span class="key">Space</span> Pause / Resume</p>
       <p><span class="key">Esc</span> Toggle this menu</p>
       <p><span class="key">←</span> Previous image</p>
       <p><span class="key">→</span> Next image</p>
-      <p class="menu-section">Actions (DB mode)</p>
-      <p><span class="key">f</span> Favorite</p>
-      <p><span class="key">d</span> Mark for delete</p>
-      <p><span class="key">r</span> Mark for rotate</p>
-      <button id="resume-btn">Resume</button>
-      <p class="menu-link"><a id="params-link" href="/params">Params</a></p>
+      <div id="db-actions" style="display:none;">
+        <p class="menu-section">Actions (DB mode)</p>
+        <p><span class="key">f</span> Favorite</p>
+        <p><span class="key">d</span> Mark for delete</p>
+      </div>
+      <button id="resume-btn" class="btn btn-primary">Resume</button>
+      <p class="menu-link"><a id="params-link" href="/params">Settings</a></p>
+    </div>
+  </div>
+
+  <!-- Delete action form -->
+  <div id="delete-overlay" class="overlay">
+    <div class="panel action-form">
+      <h2>Delete</h2>
+      <div class="form-info">
+        <p><strong>Filename:</strong> <span id="delete-filename"></span></p>
+        <p><strong>Date:</strong> <span id="delete-date"></span></p>
+      </div>
+      <div class="field">
+        <label for="delete-note">Notes</label>
+        <textarea id="delete-note" class="input" rows="3" placeholder="Add a note..."></textarea>
+      </div>
+      <div id="delete-status" class="action-status"></div>
+      <div class="form-buttons">
+        <button id="delete-cancel-btn" class="btn btn-secondary">Cancel</button>
+        <button id="delete-submit-btn" class="btn btn-primary">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Favorite action form -->
+  <div id="favorite-overlay" class="overlay">
+    <div class="panel action-form">
+      <h2>Favorite</h2>
+      <div class="form-info">
+        <p><strong>Filename:</strong> <span id="favorite-filename"></span></p>
+        <p><strong>Date:</strong> <span id="favorite-date"></span></p>
+      </div>
+      <div class="field">
+        <label for="favorite-note">Notes</label>
+        <textarea id="favorite-note" class="input" rows="3" placeholder="Add a note..."></textarea>
+      </div>
+      <div id="favorite-status" class="action-status"></div>
+      <div class="form-buttons">
+        <button id="favorite-cancel-btn" class="btn btn-secondary">Cancel</button>
+        <button id="favorite-submit-btn" class="btn btn-primary">Favorite</button>
+      </div>
     </div>
   </div>
 

@@ -60,6 +60,14 @@ The SQLite database (`fotos.db`) has two tables:
 - `fotos` — one row per image: id, path, name, bytes, dt_taken, dt_created, camera, lens, lat, lon, img_size, duration, MD5
 - `actions` — user actions on images: id, foto_id (FK to fotos), act, dt_act, note
 
+## CSS Philosophy
+
+Prefer simple, reusable styles over element-specific styling:
+- Define CSS variables in `:root` for colors, spacing, radii
+- Create a small set of utility classes (`.btn`, `.input`, `.overlay`, `.panel`, `.indicator`) and reuse them
+- Use IDs only for JavaScript hooks; style via classes
+- Avoid duplicating styles — if two elements look similar, they should share a class
+
 ## Naming Conventions
 
 Use "params" (not "config") throughout the codebase — this was an intentional rename.
