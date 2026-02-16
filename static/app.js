@@ -19,6 +19,7 @@
   // Delete form elements
   var deleteOverlay = document.getElementById('delete-overlay');
   var deleteFilename = document.getElementById('delete-filename');
+  var deletePath = document.getElementById('delete-path');
   var deleteDate = document.getElementById('delete-date');
   var deleteNote = document.getElementById('delete-note');
   var deleteStatus = document.getElementById('delete-status');
@@ -28,6 +29,7 @@
   // Favorite form elements
   var favoriteOverlay = document.getElementById('favorite-overlay');
   var favoriteFilename = document.getElementById('favorite-filename');
+  var favoritePath = document.getElementById('favorite-path');
   var favoriteDate = document.getElementById('favorite-date');
   var favoriteNote = document.getElementById('favorite-note');
   var favoriteStatus = document.getElementById('favorite-status');
@@ -49,6 +51,7 @@
   var timer = null;
   var currentFotoId = null;
   var currentFilename = '';
+  var currentPath = '';
   var currentDtCreated = '';
 
   // Show a brief toast for action feedback
@@ -69,7 +72,7 @@
     return await response.json();
   }
 
-  // DB mode: fetch the foto_id, name, and dtCreated for the current image index
+  // DB mode: fetch the foto_id, name, path, and dtCreated for the current image index
   async function fetchImageInfo(index) {
     if (source !== 'db') return;
     if (index < 0 || index >= images.length) return;
@@ -79,17 +82,20 @@
         // Index out of bounds or server error — silently ignore
         currentFotoId = null;
         currentFilename = '';
+        currentPath = '';
         currentDtCreated = '';
         return;
       }
       var data = await response.json();
       currentFotoId = data.id;
       currentFilename = data.name || '';
+      currentPath = data.path || '';
       currentDtCreated = data.dtCreated || '';
     } catch {
       // Network error — silently reset state
       currentFotoId = null;
       currentFilename = '';
+      currentPath = '';
       currentDtCreated = '';
     }
   }
@@ -221,6 +227,7 @@
     closeMenu();
     currentForm = 'delete';
     deleteFilename.textContent = currentFilename || 'Unknown';
+    deletePath.textContent = currentPath || 'Unknown';
     deleteDate.textContent = currentDtCreated || 'Unknown';
     deleteNote.value = '';
     deleteStatus.textContent = '';
@@ -239,6 +246,7 @@
     closeMenu();
     currentForm = 'favorite';
     favoriteFilename.textContent = currentFilename || 'Unknown';
+    favoritePath.textContent = currentPath || 'Unknown';
     favoriteDate.textContent = currentDtCreated || 'Unknown';
     favoriteNote.value = '';
     favoriteStatus.textContent = '';

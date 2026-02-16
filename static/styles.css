@@ -274,6 +274,11 @@ body.settings {
   color: var(--text-muted);
 }
 
+.path-text {
+  word-break: break-all;
+  font-size: 12px;
+}
+
 .form-buttons {
   display: flex;
   gap: 15px;

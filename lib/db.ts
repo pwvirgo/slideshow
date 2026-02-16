@@ -101,7 +101,6 @@ export function queryImages(db: DatabaseSync, whereClause: string,
   if (skipped > 0) {
     logger.warn(`Skipped ${skipped} images with missing files (of ${allImages.length} from DB)`);
   }
-  logger.info(`DB query returned ${images.length} available images`);
 
   return {
     images,
@@ -140,10 +139,13 @@ export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null
   };
 }
 
-export function insertAction(db: DatabaseSync, fotoId: number, act: string, note: string): void {
+export function insertAction(db: DatabaseSync, fotoId: number, act: string, note: string, path?: string): void {
   const stmt = db.prepare(
     "INSERT INTO actions (foto_id, act, dt_act, note) VALUES (?, ?, datetime('now'), ?)"
   );
   stmt.run(fotoId, act, note);
-  logger.info(`Action recorded: foto_id=${fotoId}, act=${act}`);
+  const actUpper = act.toUpperCase();
+  const noteInfo = note ? `Notes="${note}"` : 'Notes=""';
+  const pathInfo = path ? `path=${path}` : '';
+  logger.info(`Action ${actUpper}, foto_id=${fotoId}, ${noteInfo}, ${pathInfo}`);
 }

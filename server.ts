@@ -298,7 +298,10 @@ async function main(): Promise<void> {
         if (typeof fotoId !== "number" || typeof act !== "string") {
           return jsonResponse({ error: "fotoId (number) and act (string) required" }, 400);
         }
-        insertAction(db, fotoId, act, note ?? "");
+        // Look up the path from fotoId for logging
+        const img = dbImages.find((i) => i.id === fotoId);
+        const path = img?.fullPath;
+        insertAction(db, fotoId, act, note ?? "", path);
         return jsonResponse({ ok: true });
       } catch {
         return jsonResponse({ error: "Invalid request body" }, 400);

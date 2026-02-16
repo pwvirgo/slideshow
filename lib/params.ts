@@ -60,7 +60,7 @@ export async function loadParams(paramsPath = "params.json"): Promise<Params> {
       throw new Error("maxFiles must be a number >= 1");
     }
 
-    logger.info(`Params loaded: source=${params.source}, displayTimeMs=${params.displayTimeMs}`);
+    logger.debug(`Params loaded: source=${params.source}, displayTimeMs=${params.displayTimeMs}`);
     return params;
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) {
