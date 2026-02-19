@@ -8,6 +8,7 @@
   var sourceSelect = document.getElementById('source');
   var dbPathInput = document.getElementById('dbPath');
   var whereClauseInput = document.getElementById('whereClause');
+  var csvPathInput = document.getElementById('csvPath');
   var imageFolderPathInput = document.getElementById('imageFolderPath');
   var maxDepthInput = document.getElementById('maxDepth');
   var maxFilesInput = document.getElementById('maxFiles');
@@ -55,6 +56,7 @@
       sourceSelect.value = params.source || 'folder';
       dbPathInput.value = params.dbPath || '';
       whereClauseInput.value = params.whereClause || '';
+      csvPathInput.value = params.csvPath || '';
       imageFolderPathInput.value = params.imageFolderPath || '';
       maxDepthInput.value = params.maxDepth || 3;
       maxFilesInput.value = params.maxFiles || 200;
@@ -101,6 +103,7 @@
         body: JSON.stringify({
           source: sourceSelect.value,
           dbPath: dbPathInput.value,
+          csvPath: csvPathInput.value,
           whereClause: whereClauseInput.value,
           imageFolderPath: imageFolderPathInput.value,
           maxDepth: parseInt(maxDepthInput.value) || 3,
@@ -123,6 +126,17 @@
     var idx = indexInput.value || 0;
     var dt = displayTimeMsInput.value || 5000;
     window.location.href = '/slides?displayTimeMs=' + dt + '&index=' + idx;
+  });
+
+  // Enter key saves params (except when a button is already focused)
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      var tag = document.activeElement ? document.activeElement.tagName : '';
+      if (tag !== 'BUTTON') {
+        e.preventDefault();
+        saveBtn.click();
+      }
+    }
   });
 
   loadParams();

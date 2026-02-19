@@ -27,54 +27,65 @@
       <p><span class="key">Esc</span> Toggle this menu</p>
       <p><span class="key">←</span> Previous image</p>
       <p><span class="key">→</span> Next image</p>
-      <div id="db-actions" style="display:none;">
-        <p class="menu-section">Actions (DB mode)</p>
-        <p><span class="key">f</span> Favorite</p>
-        <p><span class="key">d</span> Mark for delete</p>
+      <div class="menu-btn-group">
+        <button id="notes-btn" class="btn btn-secondary" style="display:none;">Notes</button>
+        <button id="resume-btn" class="btn btn-primary">Resume</button>
       </div>
-      <button id="resume-btn" class="btn btn-primary">Resume</button>
       <p class="menu-link"><a id="params-link" href="/params">Settings</a></p>
     </div>
   </div>
 
-  <!-- Delete action form -->
-  <div id="delete-overlay" class="overlay">
-    <div class="panel action-form">
-      <h2>Delete</h2>
+  <!-- Notes form -->
+  <div id="notes-overlay" class="overlay">
+    <div class="panel notes-form">
+      <h2>Notes</h2>
       <div class="form-info">
-        <p><strong>Filename:</strong> <span id="delete-filename"></span></p>
-        <p><strong>Path:</strong> <span id="delete-path" class="path-text"></span></p>
-        <p><strong>Date:</strong> <span id="delete-date"></span></p>
+        <p><strong>ID:</strong> <span id="notes-foto-id"></span></p>
+        <p><strong>Filename:</strong> <span id="notes-filename"></span></p>
+        <p><strong>Path:</strong> <span id="notes-path" class="path-text"></span></p>
+        <p><strong>Photo date:</strong> <span id="notes-date"></span></p>
+        <p><strong>Note date:</strong> <span id="notes-note-dt"></span></p>
       </div>
       <div class="field">
-        <label for="delete-note">Notes</label>
-        <textarea id="delete-note" class="input" rows="3" placeholder="Add a note..."></textarea>
-      </div>
-      <div id="delete-status" class="action-status"></div>
-      <div class="form-buttons">
-        <button id="delete-cancel-btn" class="btn btn-secondary">Cancel</button>
-        <button id="delete-submit-btn" class="btn btn-primary">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Favorite action form -->
-  <div id="favorite-overlay" class="overlay">
-    <div class="panel action-form">
-      <h2>Favorite</h2>
-      <div class="form-info">
-        <p><strong>Filename:</strong> <span id="favorite-filename"></span></p>
-        <p><strong>Path:</strong> <span id="favorite-path" class="path-text"></span></p>
-        <p><strong>Date:</strong> <span id="favorite-date"></span></p>
+        <label for="notes-title">Title</label>
+        <input type="text" id="notes-title" class="input" maxlength="60" placeholder="Short title...">
       </div>
       <div class="field">
-        <label for="favorite-note">Notes</label>
-        <textarea id="favorite-note" class="input" rows="3" placeholder="Add a note..."></textarea>
+        <label for="notes-rename-to">Rename to</label>
+        <input type="text" id="notes-rename-to" class="input" maxlength="90" placeholder="New filename...">
       </div>
-      <div id="favorite-status" class="action-status"></div>
+      <div class="row">
+        <div class="field">
+          <label for="notes-action">Action</label>
+          <input type="text" id="notes-action" class="input" maxlength="12" placeholder="e.g. delete">
+        </div>
+        <div class="field">
+          <label for="notes-status">Status</label>
+          <input type="text" id="notes-status" class="input" maxlength="10">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="notes-category">Category</label>
+          <input type="text" id="notes-category" class="input" maxlength="16">
+        </div>
+        <div class="field">
+          <label for="notes-rank">Rank (0–9)</label>
+          <input type="number" id="notes-rank" class="input" min="0" max="9">
+        </div>
+      </div>
+      <div class="field">
+        <label for="notes-location">Location</label>
+        <input type="text" id="notes-location" class="input">
+      </div>
+      <div class="field">
+        <label for="notes-note">Note</label>
+        <textarea id="notes-note" class="input" rows="4" maxlength="1024" placeholder="Enter notes..."></textarea>
+      </div>
+      <div id="notes-msg" class="action-status"></div>
       <div class="form-buttons">
-        <button id="favorite-cancel-btn" class="btn btn-secondary">Cancel</button>
-        <button id="favorite-submit-btn" class="btn btn-primary">Favorite</button>
+        <button id="notes-cancel-btn" class="btn btn-secondary">Cancel</button>
+        <button id="notes-submit-btn" class="btn btn-primary">Save Note</button>
       </div>
     </div>
   </div>

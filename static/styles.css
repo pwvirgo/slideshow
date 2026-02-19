@@ -251,7 +251,7 @@ body.settings {
   z-index: 100;
 }
 
-/* Action forms (Delete, Favorite) */
+/* Action forms */
 .action-form {
   min-width: 350px;
   text-align: left;
@@ -259,6 +259,35 @@ body.settings {
 
 .action-form h2 {
   text-align: center;
+}
+
+/* Notes form */
+.notes-form {
+  min-width: 480px;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.notes-form h2 {
+  text-align: center;
+}
+
+.notes-form .field {
+  margin-bottom: 12px;
+}
+
+/* Menu button group */
+.menu-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.menu-btn-group .btn {
+  width: 100%;
 }
 
 .form-info {
@@ -307,6 +336,13 @@ body.settings {
 textarea.input {
   resize: vertical;
   min-height: 60px;
+}
+
+/* Menu keyboard focus highlight */
+.menu-btn-group .btn:focus,
+.menu-link a:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 /* Menu overlay */
