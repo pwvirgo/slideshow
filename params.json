@@ -3,10 +3,10 @@
   "imageFolderPath": "/Users/m4book/a/projects/fotos/images",
   "dbPath": "../fotos/fotos.db",
   "csvPath": "../fotos/notes.csv",
-  "whereClause": "path like '/Volumes/pwv_repo/macbook2012/Pictures/%'",
+  "whereClause": "duration ='-'",
   "whereClause1": "id between 0 and 200",
   "displayTimeMs": 5000,
-  "maxDepth": 3,
+  "maxDepth": 6,
   "maxFiles": 200,
   "logLevel": "INFO"
 }

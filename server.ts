@@ -287,6 +287,8 @@ async function main(): Promise<void> {
         name: img.name,
         path: img.fullPath,
         dtCreated: info?.dtCreated || null,
+        md5: info?.md5 || null,
+        imgSize: info?.imgSize || null,
       });
     }
 

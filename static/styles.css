@@ -272,6 +272,13 @@ body.settings {
 
 .notes-form h2 {
   text-align: center;
+  cursor: move;
+  user-select: none;
+}
+
+/* Notes overlay is transparent so the image shows through */
+#notes-overlay {
+  background-color: transparent;
 }
 
 .notes-form .field {

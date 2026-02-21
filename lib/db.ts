@@ -14,7 +14,7 @@ export interface FotoRow {
   lon: number | null;
   img_size: string | null;
   duration: string | null;
-  MD5: string | null;
+  md5: string | null;
 }
 
 // Image entry returned to the server — includes DB id for actions
@@ -114,11 +114,13 @@ export interface ImageInfo {
   name: string;
   path: string;
   dtCreated: string | null;
+  md5: string | null;
+  imgSize: string | null;
 }
 
 export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null {
   const stmt = db.prepare(
-    "SELECT id, path, name, dt_taken, dt_created FROM fotos WHERE id = ?"
+    "SELECT id, path, name, dt_taken, dt_created, MD5 AS md5, img_size FROM fotos WHERE id = ?"
   );
   const row = stmt.get(fotoId) as FotoRow | undefined;
   if (!row) return null;
@@ -136,6 +138,8 @@ export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null
     name: row.name,
     path: `${row.path}/${row.name}`,
     dtCreated: earliest,
+    md5: row.md5 || null,
+    imgSize: row.img_size || null,
   };
 }
 

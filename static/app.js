@@ -18,6 +18,10 @@
 
   // Notes form elements
   var notesOverlay = document.getElementById('notes-overlay');
+  var notesPanelEl = notesOverlay.querySelector('.panel');
+  var notesDragHandle = notesOverlay.querySelector('h2');
+  var notesMd5Els = notesOverlay.querySelectorAll('.notes-md5');
+  var notesImgSize = document.getElementById('notes-img-size');
   var notesFotoId = document.getElementById('notes-foto-id');
   var notesFilename = document.getElementById('notes-filename');
   var notesPath = document.getElementById('notes-path');
@@ -53,6 +57,8 @@
   var currentFilename = '';
   var currentPath = '';
   var currentDtCreated = '';
+  var currentMd5 = '';
+  var currentImgSize = '';
 
   // Show a brief toast for action feedback
   function showActionToast(message) {
@@ -83,6 +89,8 @@
         currentFilename = '';
         currentPath = '';
         currentDtCreated = '';
+        currentMd5 = '';
+        currentImgSize = '';
         return;
       }
       var data = await response.json();
@@ -90,11 +98,15 @@
       currentFilename = data.name || '';
       currentPath = data.path || '';
       currentDtCreated = data.dtCreated || '';
+      currentMd5 = data.md5 || '';
+      currentImgSize = data.imgSize || '';
     } catch {
       currentFotoId = null;
       currentFilename = '';
       currentPath = '';
       currentDtCreated = '';
+      currentMd5 = '';
+      currentImgSize = '';
     }
   }
 
@@ -104,9 +116,11 @@
     closeMenu();
     currentForm = 'notes';
     notesFotoId.textContent = currentFotoId !== null ? String(currentFotoId) : 'Unknown';
+    notesMd5Els.forEach(function (el) { el.textContent = currentMd5 || ''; });
     notesFilename.textContent = currentFilename || 'Unknown';
     notesPath.textContent = currentPath || 'Unknown';
     notesDate.textContent = currentDtCreated || 'Unknown';
+    notesImgSize.textContent = currentImgSize || '';
     notesNoteDt.textContent = new Date().toISOString().split('T')[0];
     notesTitle.value = '';
     notesRenameTo.value = '';
@@ -124,6 +138,9 @@
   function closeNotesForm() {
     currentForm = null;
     notesOverlay.classList.remove('visible');
+    notesPanelEl.style.transform = '';
+    panelOffsetX = 0;
+    panelOffsetY = 0;
   }
 
   async function submitNote() {
@@ -173,6 +190,32 @@
 
   notesSubmitBtn.addEventListener('click', function () {
     submitNote();
+  });
+
+  // Notes panel drag (translate from centered position)
+  var isDragging = false;
+  var dragStartX, dragStartY;
+  var panelOffsetX = 0, panelOffsetY = 0;
+
+  notesDragHandle.addEventListener('mousedown', function (e) {
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (!isDragging) return;
+    var dx = panelOffsetX + e.clientX - dragStartX;
+    var dy = panelOffsetY + e.clientY - dragStartY;
+    notesPanelEl.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
+  });
+
+  document.addEventListener('mouseup', function (e) {
+    if (!isDragging) return;
+    panelOffsetX += e.clientX - dragStartX;
+    panelOffsetY += e.clientY - dragStartY;
+    isDragging = false;
   });
 
   // Notes button in menu
@@ -314,8 +357,12 @@
     pause();
     currentImage.style.display = 'none';
     loadingEl.style.display = 'block';
-    showError('Image failed to load',
-      'The volume may have been disconnected. Press Space to retry or Esc to open Control Panel.');
+    var parts = [];
+    if (currentFotoId !== null) parts.push('ID: ' + currentFotoId);
+    if (currentPath) parts.push('Path: ' + currentPath);
+    var detail = parts.length ? '<div style="margin-top:8px;font-size:13px;color:#aaa;">' + parts.join(' &nbsp;|&nbsp; ') + '</div>' : '';
+    showError('Image failed to load' + detail,
+      'Volume may be disconnected. Space to retry, ← → navigate, Esc for menu.');
   }
 
   // Handle successful image load
@@ -342,10 +389,29 @@
     if (isErrorState) {
       if (e.key === 'Escape') {
         e.preventDefault();
-        window.location.href = '/params';
+        if (hasImageError) {
+          hasImageError = false;
+          isErrorState = false;
+          loadingEl.style.display = 'none';
+          openMenu();
+        } else {
+          window.location.href = '/params';
+        }
       } else if (e.key === ' ' && hasImageError) {
         e.preventDefault();
         retryImage();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        hasImageError = false;
+        isErrorState = false;
+        loadingEl.style.display = 'none';
+        nextImage();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        hasImageError = false;
+        isErrorState = false;
+        loadingEl.style.display = 'none';
+        prevImage();
       }
       return;
     }

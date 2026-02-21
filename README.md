@@ -7,8 +7,10 @@ A local image slideshow application using Deno (server) and vanilla JavaScript (
 - Fullscreen image display (fits entire image, works for portrait/landscape)
 - Auto-advance with configurable timing
 - Keyboard controls for pause, navigation, and menu
+- Two image sources: folder scan or SQLite database
 - Breadth-first folder scanning, ordered by file creation date
 - Image preloading for smooth transitions
+- DB mode: draggable Notes form to annotate images, saved to CSV
 - Logging to console and file
 
 ## Requirements
@@ -42,7 +44,6 @@ Edit `params.json` to customize settings:
 
 1. Start the server:
    ```bash
-   cd /Users/pwv16/b/projects/slideshow/claude
    deno run --allow-read --allow-net --allow-write server.ts
    ```
 
@@ -56,9 +57,18 @@ Edit `params.json` to customize settings:
 | Key | Action |
 |-----|--------|
 | Spacebar | Pause / Resume |
-| Escape | Toggle menu |
+| Escape | Open menu (or menu → slideshow when open) |
 | Left Arrow | Previous image |
 | Right Arrow | Next image |
+
+**DB mode — Notes form** (open via menu → Notes):
+
+| Key | Action |
+|-----|--------|
+| Escape | Close Notes form |
+| Enter | Save note (when in a single-line field) |
+
+Drag the "Notes" title bar to reposition the form over the image.
 
 ## Logs
 

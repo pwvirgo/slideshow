@@ -27,7 +27,7 @@ There is no test framework or linter configured.
 - `GET /api/images` → JSON image list (optional `?folder=` filter in folder mode)
 - `GET /api/params` → current params.json values
 - `POST /api/logLevel` → change runtime log level
-- `GET /api/imageInfo/<index>` → DB mode: returns foto id and path for an image
+- `GET /api/imageInfo/<index>` → DB mode: returns id, name, path, dtCreated, md5, imgSize for an image
 - `POST /api/actions` → DB mode: record an action on an image
 - `GET /images/*` → serves actual image files (folder mode: relative path, DB mode: index into image list)
 
@@ -38,7 +38,7 @@ There is no test framework or linter configured.
 - `logger.ts` — four-level logger (DEBUG/INFO/WARN/ERROR), writes to both console and `slideshow.log`, level changeable at runtime
 
 **Frontend (`static/`):**
-- `app.js` — slideshow controller (IIFE). Manages image cycling, preloading, pause/resume, keyboard controls (Space, Esc, arrows). In DB mode: fetches image metadata and records actions via keyboard (f=favorite, d=delete, r=rotate).
+- `app.js` — slideshow controller (IIFE). Manages image cycling, preloading, pause/resume, keyboard controls (Space, Esc, arrows). In DB mode: fetches image metadata (id, path, md5, imgSize) and shows a draggable Notes form for annotating images (saved to CSV via `/api/notes`).
 - `params.js` — settings page controller (IIFE). Loads/displays params, controls log level via API, toggles UI between folder and DB source modes.
 - `styles.css` — dark theme, fullscreen image display with `object-fit: contain`
 
@@ -48,6 +48,7 @@ There is no test framework or linter configured.
 - `source` — `"folder"` or `"db"` (image source mode)
 - `imageFolderPath` — absolute path to image folder (folder mode)
 - `dbPath` — path to SQLite database file (DB mode)
+- `csvPath` — path to CSV file for saving notes (DB mode)
 - `whereClause` — SQL WHERE filter for fotos table (DB mode, optional)
 - `displayTimeMs` — ms per slide (minimum 100)
 - `maxDepth` — subfolder scan depth (minimum 1, folder mode)
