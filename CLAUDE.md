@@ -72,3 +72,20 @@ Prefer simple, reusable styles over element-specific styling:
 ## Naming Conventions
 
 Use "params" (not "config") throughout the codebase — this was an intentional rename.
+
+## Session Notes
+
+**Environment:**
+- Project is at `/Users/mac24/a/projects/slideshow` (also used on an iMac — paths may differ)
+- Fotos database: `/Users/mac24/a/projects/fotos/fotos.db` (referenced as `../fotos/fotos.db` in params.json)
+- Images are in `/Users/mac24/a/projects/fotos/keep/images/`
+- Remote: `github.com:pwvirgo/slideshow.git`
+
+**SQLite / Deno gotcha:**
+- Deno's `node:sqlite` returns the `MD5` column as lowercase `md5`. Always use `MD5 AS md5` alias in queries and access via `row.md5`.
+
+**TIFF detection gotcha:**
+- The `file` command incorrectly identifies many valid JPEGs as TIFF because JPEG EXIF metadata uses TIFF format internally.
+- To reliably detect true TIFF files, check magic bytes: JPEG starts with `FF D8`, TIFF starts with `49 49 2A 00` (little-endian) or `4D 4D 00 2A` (big-endian).
+- Use Python to check: `magic = open(path,'rb').read(4); is_tiff = magic[:2] != b'\xff\xd8' and magic[:4] in (b'\x49\x49\x2a\x00', b'\x4d\x4d\x00\x2a')`
+- `sips -s format jpeg "$f" --out "$f"` converts TIFF to JPEG in place safely.
