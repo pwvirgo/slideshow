@@ -47,7 +47,7 @@ export async function loadParams(paramsPath = "params.json"): Promise<Params> {
     if (params.source !== "folder" && params.source !== "db") {
       throw new Error('source must be "folder" or "db"');
     }
-    if (typeof params.imageFolderPath !== "string" || params.imageFolderPath.length === 0) {
+    if (params.source === "folder" && (typeof params.imageFolderPath !== "string" || params.imageFolderPath.length === 0)) {
       throw new Error("imageFolderPath must be a non-empty string");
     }
     if (typeof params.dbPath !== "string" || params.dbPath.length === 0) {

@@ -64,19 +64,21 @@ interface DbLoadResult {
   error: string | null;
   totalFromDb: number;
   skippedMissing: number;
+  sampleSkippedPath: string | null;
 }
 
 // Load images from DB source — returns DbImage[] with ids and absolute paths
 function loadDbImages(params: Params): DbLoadResult {
   try {
     const db = openDb(params.dbPath);
-    const result = queryImages(db, params.whereClause, params.maxFiles);
+    const result = queryImages(db, params.whereClause, params.maxFiles, params.imageFolderPath);
     return {
       dbImages: result.images,
       db,
       error: null,
       totalFromDb: result.totalFromDb,
       skippedMissing: result.skippedMissing,
+      sampleSkippedPath: result.sampleSkippedPath,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -87,6 +89,7 @@ function loadDbImages(params: Params): DbLoadResult {
       error: message,
       totalFromDb: 0,
       skippedMissing: 0,
+      sampleSkippedPath: null,
     };
   }
 }
@@ -104,6 +107,7 @@ async function main(): Promise<void> {
   let startupError: string | null = null;
   let dbTotalFromDb = 0;
   let dbSkippedMissing = 0;
+  let dbSampleSkippedPath: string | null = null;
   const isDbSource = params.source === "db";
 
   if (isDbSource) {
@@ -113,6 +117,7 @@ async function main(): Promise<void> {
     startupError = result.error;
     dbTotalFromDb = result.totalFromDb;
     dbSkippedMissing = result.skippedMissing;
+    dbSampleSkippedPath = result.sampleSkippedPath;
     if (result.error) {
       logger.error(`DB source failed: ${result.error}`);
     } else {
@@ -236,9 +241,12 @@ async function main(): Promise<void> {
         } else if (imageList.length === 0 && dbSkippedMissing > 0) {
           // All files missing (volume not mounted)
           const dbname = params.dbPath.split("/").pop() || params.dbPath;
+          const pathHint = dbSampleSkippedPath
+            ? `<br><span style="font-size:12px;word-break:break-all;">${dbSampleSkippedPath}</span>`
+            : "";
           errorInfo = {
             error: `Files in ${dbname} are not available`,
-            suggestion: "Please: Research, Correct, Restart Server.  Press Esc to open Control Panel.",
+            suggestion: `Path not found:${pathHint}<br>Check imageFolderPath in params.json and restart. Press Esc to open Control Panel.`,
           };
         } else if (imageList.length === 0 && dbTotalFromDb === 0) {
           // Empty query result

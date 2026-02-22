@@ -34,7 +34,7 @@ There is no test framework or linter configured.
 **Libraries (`lib/`):**
 - `params.ts` — loads and validates `params.json` with defaults and type checking
 - `scanner.ts` — breadth-first image discovery (.jpg, .jpeg, .png, .gif, .webp), sorted by creation date (birthtime), respects maxDepth/maxFiles
-- `db.ts` — SQLite interface using Deno's `node:sqlite`. Queries fotos table with optional WHERE clause, inserts actions. Creates actions table if missing.
+- `db.ts` — SQLite interface using Deno's `node:sqlite`. Queries fotos table with optional WHERE clause, inserts actions. Creates actions table if missing. `queryImages()` accepts optional `basePath` prepended to `path`+`name` from DB rows (for portability — DB stores relative paths, basePath comes from `imageFolderPath`). Returns `sampleSkippedPath` (first missing file path) for error reporting.
 - `logger.ts` — four-level logger (DEBUG/INFO/WARN/ERROR), writes to both console and `slideshow.log`, level changeable at runtime
 
 **Frontend (`static/`):**
@@ -46,7 +46,7 @@ There is no test framework or linter configured.
 
 `params.json` at project root:
 - `source` — `"folder"` or `"db"` (image source mode)
-- `imageFolderPath` — absolute path to image folder (folder mode)
+- `imageFolderPath` — path to image folder. In folder mode: root to scan. In DB mode: base path prepended to `path`+`name` from the fotos table (e.g. `/Users/mac24/a/projects/fotos/images`). Required in folder mode; optional (but needed) in DB mode.
 - `dbPath` — path to SQLite database file (DB mode)
 - `csvPath` — path to CSV file for saving notes (DB mode)
 - `whereClause` — SQL WHERE filter for fotos table (DB mode, optional)

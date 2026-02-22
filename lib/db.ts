@@ -67,10 +67,11 @@ export interface QueryResult {
   images: DbImage[];
   totalFromDb: number;
   skippedMissing: number;
+  sampleSkippedPath: string | null;
 }
 
 export function queryImages(db: DatabaseSync, whereClause: string,
-   maxFiles: number): QueryResult {
+   maxFiles: number, basePath = ""): QueryResult {
 
   validateWhereClause(whereClause);
 
@@ -82,17 +83,20 @@ export function queryImages(db: DatabaseSync, whereClause: string,
   const stmt = db.prepare(sql);
   const rows = stmt.all(maxFiles) as FotoRow[];
 
+  const base = basePath.replace(/\/+$/, "");
   const allImages: DbImage[] = rows.map((row) => ({
     id: row.id,
-    fullPath: `${row.path}/${row.name}`,
+    fullPath: base ? `${base}/${row.path}/${row.name}` : `${row.path}/${row.name}`,
     name: row.name,
   }));
 
   // Filter out images whose files don't exist on disk
+  let sampleSkippedPath: string | null = null;
   const images = allImages.filter((img) => {
     const exists = fileExists(img.fullPath);
     if (!exists) {
       logger.debug(`Skipping missing file: ${img.fullPath}`);
+      if (!sampleSkippedPath) sampleSkippedPath = img.fullPath;
     }
     return exists;
   });
@@ -106,6 +110,7 @@ export function queryImages(db: DatabaseSync, whereClause: string,
     images,
     totalFromDb: allImages.length,
     skippedMissing: skipped,
+    sampleSkippedPath,
   };
 }
 

@@ -400,13 +400,13 @@
       } else if (e.key === ' ' && hasImageError) {
         e.preventDefault();
         retryImage();
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' && hasImageError) {
         e.preventDefault();
         hasImageError = false;
         isErrorState = false;
         loadingEl.style.display = 'none';
         nextImage();
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft' && hasImageError) {
         e.preventDefault();
         hasImageError = false;
         isErrorState = false;

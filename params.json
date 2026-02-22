@@ -1,12 +1,12 @@
 {
   "source": "db",
-  "imageFolderPath": "/Users/m4book/a/projects/fotos/images",
+  "imageFolderPath": "/Users/mac24/a/projects/fotos/Keep/images",
   "dbPath": "../fotos/fotos.db",
   "csvPath": "../fotos/notes.csv",
   "whereClause": "duration ='-'",
   "whereClause1": "id between 0 and 200",
   "displayTimeMs": 5000,
   "maxDepth": 6,
-  "maxFiles": 200,
+  "maxFiles": 1000,
   "logLevel": "INFO"
 }

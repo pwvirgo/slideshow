@@ -24,10 +24,12 @@ curl -fsSL https://deno.land/install.sh | sh
 
 ## Configuration
 
-Edit `params.json` to customize settings:
+Edit `params.json` to customize settings.
 
+**Folder mode** (scans a directory for images):
 ```json
 {
+  "source": "folder",
   "imageFolderPath": "/path/to/your/images",
   "displayTimeMs": 5000,
   "maxDepth": 3,
@@ -35,9 +37,26 @@ Edit `params.json` to customize settings:
 }
 ```
 
-- `imageFolderPath` - Root folder containing images
+**DB mode** (reads from a SQLite `fotos` database):
+```json
+{
+  "source": "db",
+  "imageFolderPath": "/path/to/your/images",
+  "dbPath": "/path/to/fotos.db",
+  "csvPath": "notes.csv",
+  "whereClause": "",
+  "displayTimeMs": 5000,
+  "maxFiles": 200
+}
+```
+
+- `source` - `"folder"` or `"db"`
+- `imageFolderPath` - Root folder containing images. In folder mode: the directory to scan. In DB mode: base path prepended to image paths stored in the database — set this to wherever your images live on the current machine.
+- `dbPath` - Path to SQLite database (DB mode)
+- `csvPath` - Path to CSV file for saving notes (DB mode)
+- `whereClause` - SQL WHERE filter for the fotos table, e.g. `camera LIKE '%Canon%'` (DB mode, optional)
 - `displayTimeMs` - Time each image displays (milliseconds)
-- `maxDepth` - How deep to scan subfolders
+- `maxDepth` - How deep to scan subfolders (folder mode)
 - `maxFiles` - Maximum number of images to load
 
 ## Running the App
