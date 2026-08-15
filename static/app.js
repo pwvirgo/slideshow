@@ -1,7 +1,7 @@
 // app.js — Slideshow viewer
 // Responsibilities: fetch image list, display images, handle slideshow
 // controls (pause, resume, next, prev, menu).
-// In DB mode: menu shows Notes button to annotate images; data appended to CSV.
+// In DB mode: menu shows Notes button to annotate images; data saved to the notes table.
 
 (function app() {
   // DOM elements
@@ -20,21 +20,15 @@
   var notesOverlay = document.getElementById('notes-overlay');
   var notesPanelEl = notesOverlay.querySelector('.panel');
   var notesDragHandle = notesOverlay.querySelector('h2');
-  var notesMd5Els = notesOverlay.querySelectorAll('.notes-md5');
   var notesImgSize = document.getElementById('notes-img-size');
-  var notesFotoId = document.getElementById('notes-foto-id');
   var notesFilename = document.getElementById('notes-filename');
   var notesPath = document.getElementById('notes-path');
-  var notesDate = document.getElementById('notes-date');
-  var notesNoteDt = document.getElementById('notes-note-dt');
-  var notesTitle = document.getElementById('notes-title');
-  var notesRenameTo = document.getElementById('notes-rename-to');
-  var notesAction = document.getElementById('notes-action');
-  var notesStatus = document.getElementById('notes-status');
+  var notesDateTaken = document.getElementById('notes-date-taken');
+  var notesDateCreated = document.getElementById('notes-date-created');
+  var notesKb = document.getElementById('notes-kb');
   var notesCategory = document.getElementById('notes-category');
-  var notesLocation = document.getElementById('notes-location');
   var notesRank = document.getElementById('notes-rank');
-  var notesNote = document.getElementById('notes-note');
+  var notesComment = document.getElementById('notes-comment');
   var notesMsg = document.getElementById('notes-msg');
   var notesCancelBtn = document.getElementById('notes-cancel-btn');
   var notesSubmitBtn = document.getElementById('notes-submit-btn');
@@ -56,8 +50,9 @@
   var currentFotoId = null;
   var currentFilename = '';
   var currentPath = '';
+  var currentDtTaken = '';
   var currentDtCreated = '';
-  var currentMd5 = '';
+  var currentBytes = null;
   var currentImgSize = '';
 
   // Show a brief toast for action feedback
@@ -88,8 +83,9 @@
         currentFotoId = null;
         currentFilename = '';
         currentPath = '';
+        currentDtTaken = '';
         currentDtCreated = '';
-        currentMd5 = '';
+        currentBytes = null;
         currentImgSize = '';
         return;
       }
@@ -97,15 +93,17 @@
       currentFotoId = data.id;
       currentFilename = data.name || '';
       currentPath = data.path || '';
+      currentDtTaken = data.dtTaken || '';
       currentDtCreated = data.dtCreated || '';
-      currentMd5 = data.md5 || '';
+      currentBytes = typeof data.bytes === 'number' ? data.bytes : null;
       currentImgSize = data.imgSize || '';
     } catch {
       currentFotoId = null;
       currentFilename = '';
       currentPath = '';
+      currentDtTaken = '';
       currentDtCreated = '';
-      currentMd5 = '';
+      currentBytes = null;
       currentImgSize = '';
     }
   }
@@ -115,21 +113,15 @@
     if (source !== 'db') return;
     closeMenu();
     currentForm = 'notes';
-    notesFotoId.textContent = currentFotoId !== null ? String(currentFotoId) : 'Unknown';
-    notesMd5Els.forEach(function (el) { el.textContent = currentMd5 || ''; });
     notesFilename.textContent = currentFilename || 'Unknown';
     notesPath.textContent = currentPath || 'Unknown';
-    notesDate.textContent = currentDtCreated || 'Unknown';
+    notesDateTaken.textContent = currentDtTaken || 'Unknown';
+    notesDateCreated.textContent = currentDtCreated || 'Unknown';
+    notesKb.textContent = currentBytes !== null ? String(Math.round(currentBytes / 1024)) : '';
     notesImgSize.textContent = currentImgSize || '';
-    notesNoteDt.textContent = new Date().toISOString().split('T')[0];
-    notesTitle.value = '';
-    notesRenameTo.value = '';
-    notesAction.value = '';
-    notesStatus.value = '';
     notesCategory.value = '';
-    notesLocation.value = '';
     notesRank.value = '';
-    notesNote.value = '';
+    notesComment.value = '';
     notesMsg.textContent = '';
     notesMsg.className = 'action-status';
     notesOverlay.classList.add('visible');
@@ -155,15 +147,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fotosId: currentFotoId,
-          title: notesTitle.value.trim(),
-          renameTo: notesRenameTo.value.trim(),
-          action: notesAction.value.trim(),
-          status: notesStatus.value.trim(),
+          fotoId: currentFotoId,
           category: notesCategory.value.trim(),
-          location: notesLocation.value.trim(),
           rank: rankVal,
-          note: notesNote.value.trim(),
+          comment: notesComment.value.trim(),
         }),
       });
       if (response.ok) {

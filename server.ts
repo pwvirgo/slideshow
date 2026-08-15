@@ -1,7 +1,7 @@
 import { logger, LogLevel } from "./lib/logger.ts";
 import { loadParams, Params } from "./lib/params.ts";
 import { scanImages } from "./lib/scanner.ts";
-import { openDb, queryImages, insertAction, getImageInfo, DbImage, QueryResult } from "./lib/db.ts";
+import { openDb, queryImages, insertAction, insertNote, getImageInfo, DbImage, QueryResult } from "./lib/db.ts";
 import { DatabaseSync } from "node:sqlite";
 
 const PORT = 8000;
@@ -71,7 +71,7 @@ interface DbLoadResult {
 function loadDbImages(params: Params): DbLoadResult {
   try {
     const db = openDb(params.dbPath);
-    const result = queryImages(db, params.whereClause, params.maxFiles, params.imageFolderPath);
+    const result = queryImages(db, params.whereClause, params.maxFiles);
     return {
       dbImages: result.images,
       db,
@@ -159,7 +159,6 @@ async function main(): Promise<void> {
         source: params.source,
         imageFolderPath: params.imageFolderPath,
         dbPath: params.dbPath,
-        csvPath: params.csvPath,
         whereClause: params.whereClause,
         displayTimeMs: params.displayTimeMs,
         maxDepth: params.maxDepth,
@@ -179,7 +178,6 @@ async function main(): Promise<void> {
         // Update fields from the form
         if (body.source !== undefined) current.source = body.source;
         if (body.dbPath !== undefined) current.dbPath = body.dbPath;
-        if (body.csvPath !== undefined) current.csvPath = body.csvPath;
         if (body.whereClause !== undefined) current.whereClause = body.whereClause;
         if (body.imageFolderPath !== undefined) current.imageFolderPath = body.imageFolderPath;
         if (body.maxDepth !== undefined) current.maxDepth = body.maxDepth;
@@ -294,8 +292,9 @@ async function main(): Promise<void> {
         id: img.id,
         name: img.name,
         path: img.fullPath,
+        dtTaken: info?.dtTaken || null,
         dtCreated: info?.dtCreated || null,
-        md5: info?.md5 || null,
+        bytes: info?.bytes ?? null,
         imgSize: info?.imgSize || null,
       });
     }
@@ -307,66 +306,33 @@ async function main(): Promise<void> {
       }
       try {
         const body = await request.json();
-        const { fotoId, act, note } = body;
+        const { fotoId, act } = body;
         if (typeof fotoId !== "number" || typeof act !== "string") {
           return jsonResponse({ error: "fotoId (number) and act (string) required" }, 400);
         }
         // Look up the path from fotoId for logging
         const img = dbImages.find((i) => i.id === fotoId);
         const path = img?.fullPath;
-        insertAction(db, fotoId, act, note ?? "", path);
+        insertAction(db, fotoId, act, path);
         return jsonResponse({ ok: true });
       } catch {
         return jsonResponse({ error: "Invalid request body" }, 400);
       }
     }
 
-    // Route: POST /api/notes - Append a note row to the CSV file (DB mode)
+    // Route: POST /api/notes - Record a note on an image (DB mode)
     if (isDbSource && pathname === "/api/notes" && request.method === "POST") {
-      const csvPath = params.csvPath;
-      if (!csvPath) {
-        return jsonResponse({ error: "csvPath not configured in params.json" }, 400);
+      if (!db) {
+        return jsonResponse({ error: "Database not available" }, 500);
       }
       try {
         const body = await request.json();
-        const { fotosId, title, renameTo, action: noteAction, status, category, location, rank, note } = body;
-        if (typeof fotosId !== "number") {
-          return jsonResponse({ error: "fotosId (number) required" }, 400);
+        const { fotoId, category, rank, comment } = body;
+        if (typeof fotoId !== "number") {
+          return jsonResponse({ error: "fotoId (number) required" }, 400);
         }
-        const notedt = new Date().toISOString().split("T")[0];
-
-        const escCsv = (v: string | number | null | undefined): string => {
-          if (v === null || v === undefined || v === "") return `""`;
-          return `"` + String(v).replace(/"/g, `""`) + `"`;
-        };
-
-        let fileExists = false;
-        try {
-          await Deno.stat(csvPath);
-          fileExists = true;
-        } catch { /* file doesn't exist yet */ }
-
-        // Count existing lines to determine next id (header + n data rows = n+1 lines → nextId = n+1)
-        let nextId = 1;
-        if (fileExists) {
-          const content = await Deno.readTextFile(csvPath);
-          const lines = content.trim().split("\n").filter((l) => l.length > 0);
-          nextId = lines.length; // header counts as line 1, so next data id = lines.length
-        }
-
-        const header = "id,fotos_id,note_dt,title,rename_to,action,status,category,location,rank,note\n";
-        const row = [nextId, fotosId, notedt, title ?? "", renameTo ?? "", noteAction ?? "",
-          status ?? "", category ?? "", location ?? "", rank ?? "", note ?? ""]
-          .map(escCsv).join(",") + "\n";
-
-        if (!fileExists) {
-          await Deno.writeTextFile(csvPath, header + row);
-          logger.info(`Notes CSV created: ${csvPath}`);
-        } else {
-          await Deno.writeTextFile(csvPath, row, { append: true });
-        }
-        logger.info(`Note saved: id=${nextId}, fotos_id=${fotosId}, action=${noteAction || ""}`);
-        return jsonResponse({ ok: true, id: nextId });
+        insertNote(db, fotoId, category || null, typeof rank === "number" ? rank : null, comment || null);
+        return jsonResponse({ ok: true });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         logger.error(`Failed to save note: ${message}`);

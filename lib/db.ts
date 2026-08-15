@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { logger } from "./logger.ts";
 
 export interface FotoRow {
-  id: number;
+  img_id: number;
   path: string;
   name: string;
   bytes: number;
@@ -24,16 +24,6 @@ export interface DbImage {
   name: string;
 }
 
-const CREATE_ACTIONS_SQL = `
-CREATE TABLE IF NOT EXISTS actions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  foto_id INTEGER NOT NULL,
-  act TEXT,
-  dt_act TEXT,
-  note TEXT,
-  FOREIGN KEY (foto_id) REFERENCES fotos(id)
-)`;
-
 // Reject anything that looks like it could modify the database
 function validateWhereClause(clause: string): void {
   if (clause.trim() === "") return;
@@ -48,8 +38,6 @@ function validateWhereClause(clause: string): void {
 
 export function openDb(dbPath: string): DatabaseSync {
   const db = new DatabaseSync(dbPath);
-  // Ensure actions table exists
-  db.exec(CREATE_ACTIONS_SQL);
   logger.info(`Opened database: ${dbPath}`);
   return db;
 }
@@ -63,6 +51,21 @@ function fileExists(path: string): boolean {
   }
 }
 
+// Copy a fotos row into the deleted table and remove it from fotos.
+// Assumes `deleted` has the same columns as `fotos` (owned/created externally).
+function moveToDeleted(db: DatabaseSync, imgId: number): void {
+  db.exec("BEGIN");
+  try {
+    db.prepare("INSERT INTO deleted SELECT * FROM fotos WHERE img_id = ?").run(imgId);
+    db.prepare("DELETE FROM fotos WHERE img_id = ?").run(imgId);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`Failed to move img_id=${imgId} to deleted table: ${message}`);
+  }
+}
+
 export interface QueryResult {
   images: DbImage[];
   totalFromDb: number;
@@ -71,22 +74,21 @@ export interface QueryResult {
 }
 
 export function queryImages(db: DatabaseSync, whereClause: string,
-   maxFiles: number, basePath = ""): QueryResult {
+   maxFiles: number): QueryResult {
 
   validateWhereClause(whereClause);
 
   const where = whereClause.trim() === "" ? "" : `WHERE ${whereClause}`;
-  const sql = `SELECT id, path, name FROM fotos ${where} LIMIT ?`;
+  const sql = `SELECT img_id, path, name FROM fotos ${where} LIMIT ?`;
 
   logger.debug(`DB query: ${sql} [${maxFiles}]`);
 
   const stmt = db.prepare(sql);
   const rows = stmt.all(maxFiles) as FotoRow[];
 
-  const base = basePath.replace(/\/+$/, "");
   const allImages: DbImage[] = rows.map((row) => ({
-    id: row.id,
-    fullPath: base ? `${base}/${row.path}/${row.name}` : `${row.path}/${row.name}`,
+    id: row.img_id,
+    fullPath: `${row.path}/${row.name}`,
     name: row.name,
   }));
 
@@ -95,7 +97,8 @@ export function queryImages(db: DatabaseSync, whereClause: string,
   const images = allImages.filter((img) => {
     const exists = fileExists(img.fullPath);
     if (!exists) {
-      logger.debug(`Skipping missing file: ${img.fullPath}`);
+      logger.debug(`Moving missing file to deleted table: ${img.fullPath}`);
+      moveToDeleted(db, img.id);
       if (!sampleSkippedPath) sampleSkippedPath = img.fullPath;
     }
     return exists;
@@ -103,7 +106,7 @@ export function queryImages(db: DatabaseSync, whereClause: string,
 
   const skipped = allImages.length - images.length;
   if (skipped > 0) {
-    logger.warn(`Skipped ${skipped} images with missing files (of ${allImages.length} from DB)`);
+    logger.warn(`Moved ${skipped} images to deleted table (missing from disk, of ${allImages.length} from DB)`);
   }
 
   return {
@@ -118,43 +121,50 @@ export interface ImageInfo {
   id: number;
   name: string;
   path: string;
+  dtTaken: string | null;
   dtCreated: string | null;
-  md5: string | null;
+  bytes: number | null;
   imgSize: string | null;
 }
 
 export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null {
   const stmt = db.prepare(
-    "SELECT id, path, name, dt_taken, dt_created, MD5 AS md5, img_size FROM fotos WHERE id = ?"
+    "SELECT img_id, path, name, dt_taken, dt_created, bytes, img_size FROM fotos WHERE img_id = ?"
   );
   const row = stmt.get(fotoId) as FotoRow | undefined;
   if (!row) return null;
 
-  // Return the earliest date from dt_taken and dt_created
-  let earliest: string | null = null;
-  if (row.dt_taken && row.dt_created) {
-    earliest = row.dt_taken < row.dt_created ? row.dt_taken : row.dt_created;
-  } else {
-    earliest = row.dt_taken || row.dt_created;
-  }
-
   return {
-    id: row.id,
+    id: row.img_id,
     name: row.name,
     path: `${row.path}/${row.name}`,
-    dtCreated: earliest,
-    md5: row.md5 || null,
+    dtTaken: row.dt_taken || null,
+    dtCreated: row.dt_created || null,
+    bytes: row.bytes ?? null,
     imgSize: row.img_size || null,
   };
 }
 
-export function insertAction(db: DatabaseSync, fotoId: number, act: string, note: string, path?: string): void {
+export function insertAction(db: DatabaseSync, imgId: number, action: string, path?: string): void {
   const stmt = db.prepare(
-    "INSERT INTO actions (foto_id, act, dt_act, note) VALUES (?, ?, datetime('now'), ?)"
+    "INSERT INTO actions (action, img_id, status) VALUES (?, ?, 'pending')"
   );
-  stmt.run(fotoId, act, note);
-  const actUpper = act.toUpperCase();
-  const noteInfo = note ? `Notes="${note}"` : 'Notes=""';
+  stmt.run(action, imgId);
+  const actionUpper = action.toUpperCase();
   const pathInfo = path ? `path=${path}` : '';
-  logger.info(`Action ${actUpper}, foto_id=${fotoId}, ${noteInfo}, ${pathInfo}`);
+  logger.info(`Action ${actionUpper}, img_id=${imgId}, ${pathInfo}`);
+}
+
+export function insertNote(
+  db: DatabaseSync,
+  imgId: number,
+  category: string | null,
+  rank: number | null,
+  comment: string | null,
+): void {
+  const stmt = db.prepare(
+    "INSERT INTO notes (category, rank, comment, img_id) VALUES (?, ?, ?, ?)"
+  );
+  stmt.run(category, rank, comment, imgId);
+  logger.info(`Note saved, img_id=${imgId}, category=${category ?? ""}, rank=${rank ?? ""}`);
 }
