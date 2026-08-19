@@ -1,9 +1,10 @@
 {
   "source": "db",
-  "imageFolderPath": "/Users/mac24/a/projects/fotos/Keep/images",
-  "dbPath": "../fotos/fotos.db",
-  "whereClause": "duration ='-'",
+  "imageFolderPath": "/Users/mac24/a/projects/photos/images",
+  "dbPath": "../photos/photos.db",
+  "whereClause": "duration ='-' and path like '%photoslibrary%'" ,
   "whereClause1": "id between 0 and 200",
+  "orderBy": "dt_created, md5",
   "displayTimeMs": 5000,
   "maxDepth": 6,
   "maxFiles": 1000,

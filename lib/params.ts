@@ -7,6 +7,7 @@ export interface Params {
   imageFolderPath: string;
   dbPath: string;
   whereClause: string;
+  orderBy: string;
   displayTimeMs: number;
   maxDepth: number;
   maxFiles: number;
@@ -18,6 +19,7 @@ const DEFAULT_PARAMS: Params = {
   imageFolderPath: "/Users/m4book/a/projects/fotos/images",
   dbPath: "../db/fotos.db",
   whereClause: "",
+  orderBy: "",
   displayTimeMs: 5000,
   maxDepth: 3,
   maxFiles: 200,
@@ -34,6 +36,7 @@ export async function loadParams(paramsPath = "params.json"): Promise<Params> {
       imageFolderPath: parsed.imageFolderPath ?? DEFAULT_PARAMS.imageFolderPath,
       dbPath: parsed.dbPath ?? DEFAULT_PARAMS.dbPath,
       whereClause: parsed.whereClause ?? DEFAULT_PARAMS.whereClause,
+      orderBy: parsed.orderBy ?? DEFAULT_PARAMS.orderBy,
       displayTimeMs: parsed.displayTimeMs ?? DEFAULT_PARAMS.displayTimeMs,
       maxDepth: parsed.maxDepth ?? DEFAULT_PARAMS.maxDepth,
       maxFiles: parsed.maxFiles ?? DEFAULT_PARAMS.maxFiles,

@@ -71,7 +71,7 @@ interface DbLoadResult {
 function loadDbImages(params: Params): DbLoadResult {
   try {
     const db = openDb(params.dbPath);
-    const result = queryImages(db, params.whereClause, params.maxFiles);
+    const result = queryImages(db, params.whereClause, params.maxFiles, params.orderBy);
     return {
       dbImages: result.images,
       db,
@@ -160,6 +160,7 @@ async function main(): Promise<void> {
         imageFolderPath: params.imageFolderPath,
         dbPath: params.dbPath,
         whereClause: params.whereClause,
+        orderBy: params.orderBy,
         displayTimeMs: params.displayTimeMs,
         maxDepth: params.maxDepth,
         maxFiles: params.maxFiles,
@@ -179,6 +180,7 @@ async function main(): Promise<void> {
         if (body.source !== undefined) current.source = body.source;
         if (body.dbPath !== undefined) current.dbPath = body.dbPath;
         if (body.whereClause !== undefined) current.whereClause = body.whereClause;
+        if (body.orderBy !== undefined) current.orderBy = body.orderBy;
         if (body.imageFolderPath !== undefined) current.imageFolderPath = body.imageFolderPath;
         if (body.maxDepth !== undefined) current.maxDepth = body.maxDepth;
         if (body.maxFiles !== undefined) current.maxFiles = body.maxFiles;
@@ -227,8 +229,8 @@ async function main(): Promise<void> {
             };
           } else if (startupError.includes("syntax error")) {
             errorInfo = {
-              error: `SQL syntax error in WHERE clause`,
-              suggestion: `Fix the whereClause in params.json. Current: "${params.whereClause}"`,
+              error: `SQL syntax error in WHERE or ORDER BY clause`,
+              suggestion: `Fix the whereClause ("${params.whereClause}") or orderBy ("${params.orderBy}") in params.json.`,
             };
           } else {
             errorInfo = {

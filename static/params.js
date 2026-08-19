@@ -8,6 +8,7 @@
   var sourceSelect = document.getElementById('source');
   var dbPathInput = document.getElementById('dbPath');
   var whereClauseInput = document.getElementById('whereClause');
+  var orderByInput = document.getElementById('orderBy');
   var imageFolderPathInput = document.getElementById('imageFolderPath');
   var maxDepthInput = document.getElementById('maxDepth');
   var maxFilesInput = document.getElementById('maxFiles');
@@ -55,6 +56,7 @@
       sourceSelect.value = params.source || 'folder';
       dbPathInput.value = params.dbPath || '';
       whereClauseInput.value = params.whereClause || '';
+      orderByInput.value = params.orderBy || '';
       imageFolderPathInput.value = params.imageFolderPath || '';
       maxDepthInput.value = params.maxDepth || 3;
       maxFilesInput.value = params.maxFiles || 200;
@@ -102,6 +104,7 @@
           source: sourceSelect.value,
           dbPath: dbPathInput.value,
           whereClause: whereClauseInput.value,
+          orderBy: orderByInput.value,
           imageFolderPath: imageFolderPathInput.value,
           maxDepth: parseInt(maxDepthInput.value) || 3,
           maxFiles: parseInt(maxFilesInput.value) || 200,

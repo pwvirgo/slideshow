@@ -25,13 +25,15 @@ export interface DbImage {
 }
 
 // Reject anything that looks like it could modify the database
-function validateWhereClause(clause: string): void {
+function validateSqlFragment(clause: string, label: string): void {
   if (clause.trim() === "") return;
-  const lower = clause.toLowerCase();
-  const forbidden = ["insert", "update", "delete", "drop", "alter", "create", ";"];
+  if (clause.includes(";")) {
+    throw new Error(`${label} contains forbidden keyword: ;`);
+  }
+  const forbidden = ["insert", "update", "delete", "drop", "alter", "create"];
   for (const word of forbidden) {
-    if (lower.includes(word)) {
-      throw new Error(`WHERE clause contains forbidden keyword: ${word}`);
+    if (new RegExp(`\\b${word}\\b`, "i").test(clause)) {
+      throw new Error(`${label} contains forbidden keyword: ${word}`);
     }
   }
 }
@@ -74,12 +76,14 @@ export interface QueryResult {
 }
 
 export function queryImages(db: DatabaseSync, whereClause: string,
-   maxFiles: number): QueryResult {
+   maxFiles: number, orderBy = ""): QueryResult {
 
-  validateWhereClause(whereClause);
+  validateSqlFragment(whereClause, "WHERE clause");
+  validateSqlFragment(orderBy, "ORDER BY clause");
 
   const where = whereClause.trim() === "" ? "" : `WHERE ${whereClause}`;
-  const sql = `SELECT img_id, path, name FROM fotos ${where} LIMIT ?`;
+  const order = orderBy.trim() === "" ? "" : `ORDER BY ${orderBy}`;
+  const sql = `SELECT img_id, path, name FROM fotos ${where} ${order} LIMIT ?`;
 
   logger.debug(`DB query: ${sql} [${maxFiles}]`);
 
