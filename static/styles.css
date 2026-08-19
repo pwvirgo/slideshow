@@ -251,6 +251,18 @@ body.settings {
   z-index: 100;
 }
 
+.info-overlay {
+  top: 20px;
+  left: 20px;
+  max-width: 70%;
+  padding: 10px 15px;
+  font-size: 18px;
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre-line;
+  word-break: break-all;
+}
+
 /* Action forms */
 .action-form {
   min-width: 350px;

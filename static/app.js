@@ -15,6 +15,7 @@
   var imageCounter = document.getElementById('image-counter');
   var paramsLink = document.getElementById('params-link');
   var actionIndicator = document.getElementById('action-indicator');
+  var infoOverlay = document.getElementById('info-overlay');
 
   // Notes form elements
   var notesOverlay = document.getElementById('notes-overlay');
@@ -54,6 +55,7 @@
   var currentDtCreated = '';
   var currentBytes = null;
   var currentImgSize = '';
+  var isInfoVisible = false;
 
   // Show a brief toast for action feedback
   function showActionToast(message) {
@@ -87,6 +89,7 @@
         currentDtCreated = '';
         currentBytes = null;
         currentImgSize = '';
+        updateInfoOverlay();
         return;
       }
       var data = await response.json();
@@ -97,6 +100,7 @@
       currentDtCreated = data.dtCreated || '';
       currentBytes = typeof data.bytes === 'number' ? data.bytes : null;
       currentImgSize = data.imgSize || '';
+      updateInfoOverlay();
     } catch {
       currentFotoId = null;
       currentFilename = '';
@@ -105,7 +109,27 @@
       currentDtCreated = '';
       currentBytes = null;
       currentImgSize = '';
+      updateInfoOverlay();
     }
+  }
+
+  // Toggleable overlay showing ID/filename/path/dates/size for the current image
+  function updateInfoOverlay() {
+    if (source !== 'db' || !isInfoVisible) return;
+    var kb = currentBytes !== null ? Math.round(currentBytes / 1024) + ' KB' : 'Unknown';
+    infoOverlay.textContent =
+      'ID: ' + (currentFotoId !== null ? currentFotoId : 'Unknown') + '\n' +
+      'Name: ' + (currentFilename || 'Unknown') + '\n' +
+      'Path: ' + (currentPath || 'Unknown') + '\n' +
+      'Taken: ' + (currentDtTaken || 'Unknown') + '  Created: ' + (currentDtCreated || 'Unknown') + '\n' +
+      kb + (currentImgSize ? '  ' + currentImgSize : '');
+  }
+
+  function toggleInfo() {
+    if (source !== 'db') return;
+    isInfoVisible = !isInfoVisible;
+    infoOverlay.classList.toggle('visible', isInfoVisible);
+    updateInfoOverlay();
   }
 
   // Notes form
@@ -165,7 +189,10 @@
       }
     } catch (error) {
       console.error('Failed to save note:', error);
-      notesMsg.textContent = 'Error saving note';
+      var prefix = error instanceof TypeError
+        ? "Can't reach the server — is it still running? "
+        : 'Error saving note: ';
+      notesMsg.textContent = prefix + error;
       notesMsg.className = 'action-status error';
     }
   }
@@ -485,6 +512,11 @@
       case 'ArrowRight':
         e.preventDefault();
         nextImage();
+        break;
+      case 'i':
+      case 'I':
+        e.preventDefault();
+        toggleInfo();
         break;
     }
   });
