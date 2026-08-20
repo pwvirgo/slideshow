@@ -23,6 +23,7 @@
   var notesDragHandle = notesOverlay.querySelector('h2');
   var notesImgSize = document.getElementById('notes-img-size');
   var notesFilename = document.getElementById('notes-filename');
+  var notesImgId = document.getElementById('notes-img-id');
   var notesPath = document.getElementById('notes-path');
   var notesDateTaken = document.getElementById('notes-date-taken');
   var notesDateCreated = document.getElementById('notes-date-created');
@@ -135,9 +136,11 @@
   // Notes form
   function openNotesForm() {
     if (source !== 'db') return;
+    pause();
     closeMenu();
     currentForm = 'notes';
     notesFilename.textContent = currentFilename || 'Unknown';
+    notesImgId.textContent = currentFotoId !== null ? currentFotoId : 'Unknown';
     notesPath.textContent = currentPath || 'Unknown';
     notesDateTaken.textContent = currentDtTaken || 'Unknown';
     notesDateCreated.textContent = currentDtCreated || 'Unknown';
@@ -149,14 +152,16 @@
     notesMsg.textContent = '';
     notesMsg.className = 'action-status';
     notesOverlay.classList.add('visible');
+    setTimeout(function () {
+      notesCategory.focus();
+    }, 0);
   }
 
   function closeNotesForm() {
     currentForm = null;
     notesOverlay.classList.remove('visible');
-    notesPanelEl.style.transform = '';
-    panelOffsetX = 0;
-    panelOffsetY = 0;
+    // Leave notesPanelEl's transform/panelOffsetX/Y as-is so the panel reopens
+    // wherever the user last dragged it to, for the rest of the session.
   }
 
   async function submitNote() {
@@ -517,6 +522,11 @@
       case 'I':
         e.preventDefault();
         toggleInfo();
+        break;
+      case 'n':
+      case 'N':
+        e.preventDefault();
+        openNotesForm();
         break;
     }
   });

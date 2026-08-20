@@ -40,11 +40,17 @@ function validateSqlFragment(clause: string, label: string): void {
 
 export function openDb(dbPath: string): DatabaseSync {
   const db = new DatabaseSync(dbPath);
+  // node:sqlite enforces foreign keys by default (unlike the sqlite3 CLI, which
+  // is off by default). actions/notes intentionally keep img_id referencing
+  // fotos rows that later get moved to `deleted` as an audit trail, so FK
+  // enforcement here would block that by design — keep it off to match the
+  // behavior this app was designed and tested against.
+  db.exec("PRAGMA foreign_keys = OFF;");
   logger.info(`Opened database: ${dbPath}`);
   return db;
 }
 
-function fileExists(path: string): boolean {
+export function fileExists(path: string): boolean {
   try {
     Deno.statSync(path);
     return true;
@@ -55,16 +61,18 @@ function fileExists(path: string): boolean {
 
 // Copy a fotos row into the deleted table and remove it from fotos.
 // Assumes `deleted` has the same columns as `fotos` (owned/created externally).
-function moveToDeleted(db: DatabaseSync, imgId: number): void {
+export function moveToDeleted(db: DatabaseSync, imgId: number): boolean {
   db.exec("BEGIN");
   try {
     db.prepare("INSERT INTO deleted SELECT * FROM fotos WHERE img_id = ?").run(imgId);
     db.prepare("DELETE FROM fotos WHERE img_id = ?").run(imgId);
     db.exec("COMMIT");
+    return true;
   } catch (err) {
     db.exec("ROLLBACK");
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`Failed to move img_id=${imgId} to deleted table: ${message}`);
+    return false;
   }
 }
 
