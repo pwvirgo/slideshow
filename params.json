@@ -2,7 +2,7 @@
   "source": "db",
   "imageFolderPath": "/Users/mac24/a/projects/photos/images",
   "dbPath": "../photos/photos.db",
-  "whereClause": "path LIKE '%macbook2012/Dropbox/Camera Uploads%' AND NOT EXISTS (SELECT 1 FROM fotos b WHERE b.md5 = fotos.md5 AND b.img_id != fotos.img_id)",
+  "whereClause": "EXISTS (SELECT 1 FROM fotos b WHERE b.md5 = fotos.md5 AND b.img_id != fotos.img_id)",
   "whereClause1": "id between 0 and 200",
   "orderBy": "md5, dt_created",
   "displayTimeMs": 5000,
