@@ -24,6 +24,7 @@
   var notesImgSize = document.getElementById('notes-img-size');
   var notesFilename = document.getElementById('notes-filename');
   var notesImgId = document.getElementById('notes-img-id');
+  var notesCamera = document.getElementById('notes-camera');
   var notesPath = document.getElementById('notes-path');
   var notesDateTaken = document.getElementById('notes-date-taken');
   var notesDateCreated = document.getElementById('notes-date-created');
@@ -56,6 +57,7 @@
   var currentDtCreated = '';
   var currentBytes = null;
   var currentImgSize = '';
+  var currentCamera = '';
   var isInfoVisible = false;
 
   // Show a brief toast for action feedback
@@ -90,6 +92,7 @@
         currentDtCreated = '';
         currentBytes = null;
         currentImgSize = '';
+        currentCamera = '';
         updateInfoOverlay();
         return;
       }
@@ -101,6 +104,7 @@
       currentDtCreated = data.dtCreated || '';
       currentBytes = typeof data.bytes === 'number' ? data.bytes : null;
       currentImgSize = data.imgSize || '';
+      currentCamera = data.camera || '';
       updateInfoOverlay();
     } catch {
       currentFotoId = null;
@@ -110,6 +114,7 @@
       currentDtCreated = '';
       currentBytes = null;
       currentImgSize = '';
+      currentCamera = '';
       updateInfoOverlay();
     }
   }
@@ -119,8 +124,9 @@
     if (source !== 'db' || !isInfoVisible) return;
     var kb = currentBytes !== null ? Math.round(currentBytes / 1024) + ' KB' : 'Unknown';
     infoOverlay.textContent =
-      'ID: ' + (currentFotoId !== null ? currentFotoId : 'Unknown') + '\n' +
+      'IMG_ID: ' + (currentFotoId !== null ? currentFotoId : 'Unknown') + '\n' +
       'Name: ' + (currentFilename || 'Unknown') + '\n' +
+      'Camera: ' + (currentCamera || 'Unknown') + '\n' +
       'Path: ' + (currentPath || 'Unknown') + '\n' +
       'Taken: ' + (currentDtTaken || 'Unknown') + '  Created: ' + (currentDtCreated || 'Unknown') + '\n' +
       kb + (currentImgSize ? '  ' + currentImgSize : '');
@@ -141,6 +147,7 @@
     currentForm = 'notes';
     notesFilename.textContent = currentFilename || 'Unknown';
     notesImgId.textContent = currentFotoId !== null ? currentFotoId : 'Unknown';
+    notesCamera.textContent = currentCamera || 'Unknown';
     notesPath.textContent = currentPath || 'Unknown';
     notesDateTaken.textContent = currentDtTaken || 'Unknown';
     notesDateCreated.textContent = currentDtCreated || 'Unknown';

@@ -7,7 +7,6 @@
 2.  Create a note  by pressing N or n key
 
 ## Create/add delete pending rows in the actions table from the notes table
-
 Notes with `category = 'delete'` mark an image for deletion but don't by
 themselves create an `actions` row — that has to be staged separately. This
 inserts a pending `delete` action for every `notes` row marked for deletion,

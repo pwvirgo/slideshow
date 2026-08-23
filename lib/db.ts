@@ -137,11 +137,12 @@ export interface ImageInfo {
   dtCreated: string | null;
   bytes: number | null;
   imgSize: string | null;
+  camera: string | null;
 }
 
 export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null {
   const stmt = db.prepare(
-    "SELECT img_id, path, name, dt_taken, dt_created, bytes, img_size FROM fotos WHERE img_id = ?"
+    "SELECT img_id, path, name, dt_taken, dt_created, bytes, img_size, camera FROM fotos WHERE img_id = ?"
   );
   const row = stmt.get(fotoId) as FotoRow | undefined;
   if (!row) return null;
@@ -154,6 +155,7 @@ export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null
     dtCreated: row.dt_created || null,
     bytes: row.bytes ?? null,
     imgSize: row.img_size || null,
+    camera: row.camera || null,
   };
 }
 

@@ -298,6 +298,7 @@ async function main(): Promise<void> {
         dtCreated: info?.dtCreated || null,
         bytes: info?.bytes ?? null,
         imgSize: info?.imgSize || null,
+        camera: info?.camera || null,
       });
     }
 
