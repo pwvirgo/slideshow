@@ -1,7 +1,7 @@
 import { logger, LogLevel } from "./lib/logger.ts";
 import { loadParams, Params } from "./lib/params.ts";
 import { scanImages } from "./lib/scanner.ts";
-import { openDb, queryImages, insertAction, insertNote, getImageInfo, DbImage, QueryResult } from "./lib/db.ts";
+import { openDb, queryImages, insertAction, insertNote, hasMissingNote, fileExists, getImageInfo, DbImage } from "./lib/db.ts";
 import { DatabaseSync } from "node:sqlite";
 
 const PORT = 8000;
@@ -63,11 +63,11 @@ interface DbLoadResult {
   db: DatabaseSync | null;
   error: string | null;
   totalFromDb: number;
-  skippedMissing: number;
-  sampleSkippedPath: string | null;
 }
 
-// Load images from DB source — returns DbImage[] with ids and absolute paths
+// Load images from DB source — returns DbImage[] with ids and absolute paths.
+// Does not check the filesystem: missing-file detection happens lazily, per
+// image, when it's requested for display (see /api/imageInfo below).
 function loadDbImages(params: Params): DbLoadResult {
   try {
     const db = openDb(params.dbPath);
@@ -77,8 +77,6 @@ function loadDbImages(params: Params): DbLoadResult {
       db,
       error: null,
       totalFromDb: result.totalFromDb,
-      skippedMissing: result.skippedMissing,
-      sampleSkippedPath: result.sampleSkippedPath,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -88,8 +86,6 @@ function loadDbImages(params: Params): DbLoadResult {
       db: null,
       error: message,
       totalFromDb: 0,
-      skippedMissing: 0,
-      sampleSkippedPath: null,
     };
   }
 }
@@ -106,8 +102,6 @@ async function main(): Promise<void> {
   let db: DatabaseSync | null = null;
   let startupError: string | null = null;
   let dbTotalFromDb = 0;
-  let dbSkippedMissing = 0;
-  let dbSampleSkippedPath: string | null = null;
   const isDbSource = params.source === "db";
 
   if (isDbSource) {
@@ -116,8 +110,6 @@ async function main(): Promise<void> {
     db = result.db;
     startupError = result.error;
     dbTotalFromDb = result.totalFromDb;
-    dbSkippedMissing = result.skippedMissing;
-    dbSampleSkippedPath = result.sampleSkippedPath;
     if (result.error) {
       logger.error(`DB source failed: ${result.error}`);
     } else {
@@ -238,16 +230,6 @@ async function main(): Promise<void> {
               suggestion: "Check params.json settings and restart the server.",
             };
           }
-        } else if (imageList.length === 0 && dbSkippedMissing > 0) {
-          // All files missing (volume not mounted)
-          const dbname = params.dbPath.split("/").pop() || params.dbPath;
-          const pathHint = dbSampleSkippedPath
-            ? `<br><span style="font-size:12px;word-break:break-all;">${dbSampleSkippedPath}</span>`
-            : "";
-          errorInfo = {
-            error: `Files in ${dbname} are not available`,
-            suggestion: `Path not found:${pathHint}<br>Check imageFolderPath in params.json and restart. Press Esc to open Control Panel.`,
-          };
         } else if (imageList.length === 0 && dbTotalFromDb === 0) {
           // Empty query result
           errorInfo = {
@@ -283,12 +265,27 @@ async function main(): Promise<void> {
     }
 
     // Route: GET /api/imageInfo/<index> - Return metadata for current image (DB mode)
+    //
+    // Also the lazy missing-file detection point: this is fetched for every
+    // image before the frontend loads it, so it's checked here rather than
+    // in /images/* below. On a marker-free first miss, records one 'missing'
+    // note (see design/missing_files.md) and reports `missing: true` so the
+    // frontend can skip loading the file rather than triggering a broken-
+    // image error. Never touches `fotos` or `actions` — reconciling a
+    // 'missing' note into a real deletion is a separate, owner-driven step.
     if (isDbSource && pathname.startsWith("/api/imageInfo/")) {
       const index = parseInt(pathname.replace("/api/imageInfo/", ""));
       if (isNaN(index) || index < 0 || index >= dbImages.length) {
         return jsonResponse({ error: "Invalid image index" }, 400);
       }
       const img = dbImages[index];
+      const missing = !fileExists(img.fullPath);
+      if (missing) {
+        logger.warn(`Missing file for img_id=${img.id}: ${img.fullPath}`);
+        if (db && !hasMissingNote(db, img.id)) {
+          insertNote(db, img.id, "missing", 5, `File not found: ${img.fullPath}`);
+        }
+      }
       const info = db ? getImageInfo(db, img.id) : null;
       return jsonResponse({
         id: img.id,
@@ -299,6 +296,8 @@ async function main(): Promise<void> {
         bytes: info?.bytes ?? null,
         imgSize: info?.imgSize || null,
         camera: info?.camera || null,
+        md5: info?.md5 || null,
+        missing,
       });
     }
 

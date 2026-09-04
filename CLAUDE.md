@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Local image slideshow web app. Deno backend (TypeScript) serves images from either a configurable folder or a SQLite database. Vanilla JS frontend displays them fullscreen with auto-advance and keyboard controls. In DB mode, users can record actions (favorite, delete, rotate) on images.
+Local image slideshow web app. Deno backend (TypeScript) serves images from either a configurable folder or a SQLite database. Vanilla JS frontend displays them fullscreen with auto-advance and keyboard controls. In DB mode, users annotate images with notes (category/rank/comment) saved to the `notes` table; images whose files have gone missing on disk are auto-flagged with a `category='missing'` note. Destructive changes (deletion) are staged in the `actions` table and executed by a separate script — never inline.
 
 ## Running the App
 
@@ -14,7 +14,7 @@ deno run --allow-read --allow-net --allow-write server.ts
 
 Opens at `http://localhost:8000`. No build step — Deno runs TypeScript directly.
 
-Permissions: `--allow-read` (images, params.json, fotos.db), `--allow-net` (HTTP server), `--allow-write` (slideshow.log, fotos.db for actions).
+Permissions: `--allow-read` (images, params.json, the SQLite db), `--allow-net` (HTTP server), `--allow-write` (slideshow.log, and `notes` inserts on the db in DB mode).
 
 There is no test framework or linter configured.
 
@@ -26,19 +26,21 @@ There is no test framework or linter configured.
 - `GET /static/*` → JS, CSS assets
 - `GET /api/images` → JSON image list (optional `?folder=` filter in folder mode)
 - `GET /api/params` → current params.json values
+- `POST /api/params` → write editable params to params.json (takes effect on restart)
 - `POST /api/logLevel` → change runtime log level
-- `GET /api/imageInfo/<index>` → DB mode: returns id, name, path, dtCreated, md5, imgSize for an image
-- `POST /api/actions` → DB mode: record an action on an image
-- `GET /images/*` → serves actual image files (folder mode: relative path, DB mode: index into image list)
+- `GET /api/imageInfo/<index>` → DB mode: returns id, name, path, dtTaken, dtCreated, bytes, imgSize, camera, md5, and `missing`. Side effect: if the file is missing on disk, logs a WARN and inserts one `category='missing'` note (guarded by `hasMissingNote`). Never touches `fotos` or `actions`.
+- `POST /api/notes` → DB mode: insert a row into `notes` (category, rank, comment, img_id)
+- `POST /api/actions` → DB mode: insert a pending row into `actions`. Present but the UI does not currently call it — delete staging is done via SQL (see `design/SS_Document.md`).
+- `GET /images/*` → serves actual image files (folder mode: relative path under imageFolderPath, DB mode: index into image list → absolute path from the fotos row)
 
 **Libraries (`lib/`):**
 - `params.ts` — loads and validates `params.json` with defaults and type checking
 - `scanner.ts` — breadth-first image discovery (.jpg, .jpeg, .png, .gif, .webp), sorted by creation date (birthtime), respects maxDepth/maxFiles
-- `db.ts` — SQLite interface using Deno's `node:sqlite`. Queries fotos table with optional WHERE clause, inserts actions. Creates actions table if missing. `queryImages()` accepts optional `basePath` prepended to `path`+`name` from DB rows (for portability — DB stores relative paths, basePath comes from `imageFolderPath`). Returns `sampleSkippedPath` (first missing file path) for error reporting.
+- `db.ts` — SQLite interface using Deno's `node:sqlite`. `queryImages()` selects `img_id, path, name` from `fotos` with the optional `whereClause` / `orderBy` fragments and a `maxFiles` limit; it does **not** touch the filesystem. It wraps the query in `WITH fotos AS (SELECT * FROM main.fotos WHERE status = 'ok') …` so the CTE name `fotos` shadows the real table everywhere — the whereClause and any self-reference in it (e.g. a correlated `FROM fotos b` for md5 dedup) only ever see live rows; `status='deleted'` rows are invisible. `getImageInfo()` returns per-image metadata incl. `md5` (selected as `MD5 AS md5`). `insertNote()` / `insertAction()` do parameterized inserts. `hasMissingNote()` checks for an existing `category='missing'` note. `moveToDeleted()` still targets a `deleted` table that no longer exists — **stale, unused by the server; see `design/reconcile.md`**.
 - `logger.ts` — four-level logger (DEBUG/INFO/WARN/ERROR), writes to both console and `slideshow.log`, level changeable at runtime
 
 **Frontend (`static/`):**
-- `app.js` — slideshow controller (IIFE). Manages image cycling, preloading, pause/resume, keyboard controls (Space, Esc, arrows). In DB mode: fetches image metadata (id, path, md5, imgSize) and shows a draggable Notes form for annotating images (saved to CSV via `/api/notes`).
+- `app.js` — slideshow controller (IIFE). Manages image cycling, preloading, pause/resume, keyboard controls (Space, Esc, arrows, `I` info overlay, `N` notes). In DB mode: fetches per-image metadata via `/api/imageInfo/<index>` before loading each slide — if that response says `missing: true`, shows a brief "Photo missing — skipped" message for `displayTimeMs` and advances instead of loading a broken image. Shows a draggable Notes form for annotating images, saved to the `notes` table via `POST /api/notes`. The `I` info overlay shows IMG_ID + MD5, name, camera, path, dates, size.
 - `params.js` — settings page controller (IIFE). Loads/displays params, controls log level via API, toggles UI between folder and DB source modes.
 - `styles.css` — dark theme, fullscreen image display with `object-fit: contain`
 
@@ -46,20 +48,31 @@ There is no test framework or linter configured.
 
 `params.json` at project root:
 - `source` — `"folder"` or `"db"` (image source mode)
-- `imageFolderPath` — path to image folder. In folder mode: root to scan. In DB mode: base path prepended to `path`+`name` from the fotos table (e.g. `/Users/mac24/a/projects/fotos/images`). Required in folder mode; optional (but needed) in DB mode.
-- `dbPath` — path to SQLite database file (DB mode)
-- `csvPath` — path to CSV file for saving notes (DB mode)
-- `whereClause` — SQL WHERE filter for fotos table (DB mode, optional)
+- `imageFolderPath` — **folder mode only:** root directory to scan. Not used in DB mode — the `fotos` table stores absolute paths and they are served as-is. (Older docs said this was a base path prepended to DB paths; that is no longer true.)
+- `dbPath` — path to the SQLite database file, resolved from the project root (DB mode). Currently `../photos/photos3.db`.
+- `tableName` — present in `params.json` but **not yet wired into the code** (`fotos` is still hard-coded). Reserved for running the slideshow against temporary tables later.
+- `whereClause` — SQL `WHERE` fragment for the `fotos` query (DB mode, optional). Read-only fragments only — `insert/update/delete/drop/alter/create` and `;` are rejected. It sees only `status='ok'` rows (see `queryImages()` above), so it needs no `status` filter of its own.
+- `orderBy` — SQL `ORDER BY` fragment for the `fotos` query (DB mode, optional). Same read-only restriction.
 - `displayTimeMs` — ms per slide (minimum 100)
 - `maxDepth` — subfolder scan depth (minimum 1, folder mode)
 - `maxFiles` — image cap (minimum 1)
 - `logLevel` — DEBUG/INFO/WARN/ERROR
+- Unknown keys (e.g. `whereClause1`, `comment1`) are ignored by `loadParams()` and can be used to park alternate values.
 
 ## Database Schema
 
-The SQLite database (`fotos.db`) has two tables:
-- `fotos` — one row per image: id, path, name, bytes, dt_taken, dt_created, camera, lens, lat, lon, img_size, duration, MD5
-- `actions` — user actions on images: id, foto_id (FK to fotos), act, dt_act, note
+The SQLite database (`../photos/photos3.db`) has three tables and one view.
+`fotos` is owned and populated by a **separate** project (`../photos`); this app
+only reads it and writes `notes` / `actions`.
+
+- `fotos` — `img_id` (PK), `path`, `name`, `status` (`CHECK(status IN ('ok','deleted'))` default `'ok'`), `bytes`, `dt_taken`, `dt_created`, `camera`, `lens`, `lat`, `lon`, `img_size`, `duration`, `md5`. A previous scheme moved deleted rows to a `deleted` table; that table is gone — deletion is now the soft `status='deleted'`.
+- `notes` — `note_id` (PK), `category` (free text), `rank` (`CHECK(rank IN (1..5))`), `comment`, `img_id` (FK → fotos), `note_dt` (default now). Written by the Notes form and by missing-file detection (`category='missing'`, `rank=5`).
+- `actions` — `action_id` (PK), `action` (`CHECK` one of `mv/delete/rotate/resize/crop/edit/other` — **no `'missing'`**), `info`, `request_dt` (default now), `status_dt`, `status` (`CHECK` one of `done/pending/failed`, default `pending`), `img_id` (FK → fotos).
+- `v_notes` — view: `notes` LEFT JOIN `fotos` on `img_id`, exposing note fields plus `status`, `path`, `name`, `full_path`, `md5`, etc. Read helper for reviewing notes (esp. the future missing-file reconciliation); nothing writes through it.
+
+`node:sqlite` enforces foreign keys by default; `openDb()` turns them **off**
+(`PRAGMA foreign_keys = OFF`) on purpose, so `notes`/`actions` rows can outlive
+soft-deleted `fotos` rows as an audit trail.
 
 ## CSS Philosophy
 
@@ -77,12 +90,12 @@ Use "params" (not "config") throughout the codebase — this was an intentional 
 
 **Environment:**
 - Project is at `/Users/mac24/a/projects/slideshow` (also used on an iMac — paths may differ)
-- Fotos database: `/Users/mac24/a/projects/fotos/fotos.db` (referenced as `../fotos/fotos.db` in params.json)
-- Images are in `/Users/mac24/a/projects/fotos/keep/images/`
+- Database: `/Users/mac24/a/projects/photos/photos3.db` (`../photos/photos3.db` in params.json), built and owned by the `../photos` project
+- Images are under `/Users/mac24/a/projects/photos/images3/` (absolute paths stored in `fotos.path`)
 - Remote: `github.com:pwvirgo/slideshow.git`
 
 **SQLite / Deno gotcha:**
-- Deno's `node:sqlite` returns the `MD5` column as lowercase `md5`. Always use `MD5 AS md5` alias in queries and access via `row.md5`.
+- Deno's `node:sqlite` keys result rows by the column's declared case. `photos3.db` declares `md5` lowercase, but keep the `MD5 AS md5` alias in queries (as `getImageInfo()` does) and access via `row.md5` so it stays correct if the column is ever `MD5` again.
 
 **TIFF detection gotcha:**
 - The `file` command incorrectly identifies many valid JPEGs as TIFF because JPEG EXIF metadata uses TIFF format internally.

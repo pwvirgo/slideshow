@@ -1,5 +1,21 @@
 # Codex Project Review
 
+> **Historical document — point-in-time review, August 2026.** Kept for the
+> architectural orientation, trust-boundary notes, and testing wishlist, which
+> still apply. Some specifics have since been overtaken:
+>
+> - The "Principal Safety Concern" (startup `queryImages()` auto-moving missing
+>   files to `deleted`) is **resolved**. Missing-file detection is now lazy and
+>   per-image, and only writes a `notes` row with `category='missing'` — see
+>   `README.md` ("Missing files") and `design/reconcile.md`.
+> - The `deleted` table described under "Database mode" no longer exists.
+>   Deletion is now a soft `fotos.status = 'deleted'`; `queryImages()` hides
+>   those rows via a CTE.
+> - `design/missing-file-reconciliation.md`, referenced below, has been removed;
+>   its current content lives in `design/reconcile.md`.
+> - The CSV-note-storage and unused-`QueryResult`-import items under "Signs of
+>   Earlier Iterations" have been cleaned up.
+
 ## Purpose
 
 This document records Codex's initial examination of the slideshow project in

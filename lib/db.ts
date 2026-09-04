@@ -79,54 +79,42 @@ export function moveToDeleted(db: DatabaseSync, imgId: number): boolean {
 export interface QueryResult {
   images: DbImage[];
   totalFromDb: number;
-  skippedMissing: number;
-  sampleSkippedPath: string | null;
 }
 
+// Queries the fotos table only — does not touch the filesystem or mutate
+// catalog state. Missing-file detection happens lazily, per image, when it's
+// actually requested for display (see server.ts /api/imageInfo and /images
+// routes), not here at query/startup time. See design/missing_files.md.
 export function queryImages(db: DatabaseSync, whereClause: string,
    maxFiles: number, orderBy = ""): QueryResult {
 
   validateSqlFragment(whereClause, "WHERE clause");
   validateSqlFragment(orderBy, "ORDER BY clause");
 
+  // `status='deleted'` rows are soft-deleted: the app treats them as if they
+  // were gone from the table (this replaced an older scheme that physically
+  // moved rows into a separate `deleted` table). A CTE named `fotos` shadows
+  // the real table for the entire query, so the params.json whereClause — and
+  // any self-reference it makes, e.g. a correlated `FROM fotos b` for md5
+  // dedup — only ever sees live rows, and needs no `status` filter of its own.
   const where = whereClause.trim() === "" ? "" : `WHERE ${whereClause}`;
   const order = orderBy.trim() === "" ? "" : `ORDER BY ${orderBy}`;
-  const sql = `SELECT img_id, path, name FROM fotos ${where} ${order} LIMIT ?`;
+  const sql =
+    `WITH fotos AS (SELECT * FROM main.fotos WHERE status = 'ok') ` +
+    `SELECT img_id, path, name FROM fotos ${where} ${order} LIMIT ?`;
 
   logger.debug(`DB query: ${sql} [${maxFiles}]`);
 
   const stmt = db.prepare(sql);
   const rows = stmt.all(maxFiles) as FotoRow[];
 
-  const allImages: DbImage[] = rows.map((row) => ({
+  const images: DbImage[] = rows.map((row) => ({
     id: row.img_id,
     fullPath: `${row.path}/${row.name}`,
     name: row.name,
   }));
 
-  // Filter out images whose files don't exist on disk
-  let sampleSkippedPath: string | null = null;
-  const images = allImages.filter((img) => {
-    const exists = fileExists(img.fullPath);
-    if (!exists) {
-      logger.debug(`Moving missing file to deleted table: ${img.fullPath}`);
-      moveToDeleted(db, img.id);
-      if (!sampleSkippedPath) sampleSkippedPath = img.fullPath;
-    }
-    return exists;
-  });
-
-  const skipped = allImages.length - images.length;
-  if (skipped > 0) {
-    logger.warn(`Moved ${skipped} images to deleted table (missing from disk, of ${allImages.length} from DB)`);
-  }
-
-  return {
-    images,
-    totalFromDb: allImages.length,
-    skippedMissing: skipped,
-    sampleSkippedPath,
-  };
+  return { images, totalFromDb: images.length };
 }
 
 export interface ImageInfo {
@@ -138,11 +126,12 @@ export interface ImageInfo {
   bytes: number | null;
   imgSize: string | null;
   camera: string | null;
+  md5: string | null;
 }
 
 export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null {
   const stmt = db.prepare(
-    "SELECT img_id, path, name, dt_taken, dt_created, bytes, img_size, camera FROM fotos WHERE img_id = ?"
+    "SELECT img_id, path, name, dt_taken, dt_created, bytes, img_size, camera, MD5 AS md5 FROM fotos WHERE img_id = ?"
   );
   const row = stmt.get(fotoId) as FotoRow | undefined;
   if (!row) return null;
@@ -156,6 +145,7 @@ export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null
     bytes: row.bytes ?? null,
     imgSize: row.img_size || null,
     camera: row.camera || null,
+    md5: row.md5 || null,
   };
 }
 
@@ -181,4 +171,14 @@ export function insertNote(
   );
   stmt.run(category, rank, comment, imgId);
   logger.info(`Note saved, img_id=${imgId}, category=${category ?? ""}, rank=${rank ?? ""}`);
+}
+
+// True if a 'missing' note already exists for this image — used so a
+// still-missing file doesn't get a fresh note on every request. See
+// design/missing_files.md.
+export function hasMissingNote(db: DatabaseSync, imgId: number): boolean {
+  const row = db.prepare(
+    "SELECT 1 FROM notes WHERE img_id = ? AND LOWER(TRIM(category)) = 'missing' LIMIT 1"
+  ).get(imgId);
+  return row !== undefined;
 }

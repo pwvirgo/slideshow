@@ -58,6 +58,7 @@
   var currentBytes = null;
   var currentImgSize = '';
   var currentCamera = '';
+  var currentMd5 = '';
   var isInfoVisible = false;
 
   // Show a brief toast for action feedback
@@ -78,23 +79,31 @@
     return await response.json();
   }
 
-  // DB mode: fetch the foto_id, name, path, and dtCreated for the current image index
+  function resetCurrentInfo() {
+    currentFotoId = null;
+    currentFilename = '';
+    currentPath = '';
+    currentDtTaken = '';
+    currentDtCreated = '';
+    currentBytes = null;
+    currentImgSize = '';
+    currentCamera = '';
+    currentMd5 = '';
+    updateInfoOverlay();
+  }
+
+  // DB mode: fetch the foto_id, name, path, dtCreated, and missing-on-disk
+  // status for the current image index. Returns the parsed response (or
+  // null on failure/non-db source) so callers can check `missing` before
+  // loading the image itself — see design/missing_files.md.
   async function fetchImageInfo(index) {
-    if (source !== 'db') return;
-    if (index < 0 || index >= images.length) return;
+    if (source !== 'db') return null;
+    if (index < 0 || index >= images.length) return null;
     try {
       var response = await fetch('/api/imageInfo/' + index);
       if (!response.ok) {
-        currentFotoId = null;
-        currentFilename = '';
-        currentPath = '';
-        currentDtTaken = '';
-        currentDtCreated = '';
-        currentBytes = null;
-        currentImgSize = '';
-        currentCamera = '';
-        updateInfoOverlay();
-        return;
+        resetCurrentInfo();
+        return null;
       }
       var data = await response.json();
       currentFotoId = data.id;
@@ -105,17 +114,12 @@
       currentBytes = typeof data.bytes === 'number' ? data.bytes : null;
       currentImgSize = data.imgSize || '';
       currentCamera = data.camera || '';
+      currentMd5 = data.md5 || '';
       updateInfoOverlay();
+      return data;
     } catch {
-      currentFotoId = null;
-      currentFilename = '';
-      currentPath = '';
-      currentDtTaken = '';
-      currentDtCreated = '';
-      currentBytes = null;
-      currentImgSize = '';
-      currentCamera = '';
-      updateInfoOverlay();
+      resetCurrentInfo();
+      return null;
     }
   }
 
@@ -124,7 +128,8 @@
     if (source !== 'db' || !isInfoVisible) return;
     var kb = currentBytes !== null ? Math.round(currentBytes / 1024) + ' KB' : 'Unknown';
     infoOverlay.textContent =
-      'IMG_ID: ' + (currentFotoId !== null ? currentFotoId : 'Unknown') + '\n' +
+      'IMG_ID: ' + (currentFotoId !== null ? currentFotoId : 'Unknown') +
+        '   MD5: ' + (currentMd5 || 'Unknown') + '\n' +
       'Name: ' + (currentFilename || 'Unknown') + '\n' +
       'Camera: ' + (currentCamera || 'Unknown') + '\n' +
       'Path: ' + (currentPath || 'Unknown') + '\n' +
@@ -255,16 +260,26 @@
     resume();
   });
 
-  // Display an image by index
-  function showImage(index) {
+  // Display an image by index. In DB mode, checks missing-on-disk status
+  // (via fetchImageInfo) before loading the file — a known-missing image is
+  // shown as a brief message and skipped, rather than attempted and left to
+  // fail as a broken <img> load. See design/missing_files.md.
+  async function showImage(index) {
     if (images.length === 0) return;
     if (index < 0 || index >= images.length) {
       index = 0;
     }
     currentIndex = index;
-    var imagePath = '/images/' + images[index];
-    currentImage.src = imagePath;
+
+    var info = await fetchImageInfo(index);
+    if (info && info.missing) {
+      showMissingImage(info);
+      return;
+    }
+
+    loadingEl.style.display = 'none';
     currentImage.style.display = 'block';
+    currentImage.src = '/images/' + images[index];
 
     imageCounter.textContent = (index + 1) + ' / ' + images.length;
     paramsLink.href = '/params?displayTimeMs=' + displayTimeMs + '&index=' + index;
@@ -272,7 +287,20 @@
     var nextIndex = (index + 1) % images.length;
     preloadImage.src = '/images/' + images[nextIndex];
 
-    fetchImageInfo(index);
+    scheduleNext();
+  }
+
+  // Show a brief "photo missing" message for the normal display duration,
+  // then advance — reuses scheduleNext(), which schedules off currentIndex
+  // (already set to this missing image's index by showImage above).
+  function showMissingImage(info) {
+    currentImage.style.display = 'none';
+    loadingEl.style.display = 'block';
+    imageCounter.textContent = (currentIndex + 1) + ' / ' + images.length;
+    var detail = [];
+    if (info.id !== null && info.id !== undefined) detail.push('IMG_ID ' + info.id);
+    if (info.path) detail.push(info.path);
+    showError('Photo missing — skipped', detail.join('<br>'));
     scheduleNext();
   }
 
