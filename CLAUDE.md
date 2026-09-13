@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Local image slideshow web app. Deno backend (TypeScript) serves images from either a configurable folder or a SQLite database. Vanilla JS frontend displays them fullscreen with auto-advance and keyboard controls. In DB mode, users annotate images with notes (category/rank/comment) saved to the `notes` table; images whose files have gone missing on disk are auto-flagged with a `category='missing'` note. Destructive changes (deletion) are staged in the `actions` table and executed by a separate script — never inline.
+Local image slideshow web app. Deno backend (TypeScript) serves images from either a configurable folder or a SQLite database. Vanilla JS frontend displays them fullscreen with auto-advance and keyboard controls. In DB mode, users annotate images with notes (category/rank/comment) saved to the `notes` table; images whose files have gone missing on disk are auto-flagged with a `category='missing'` note. Destructive changes (deletion) are staged in the `actions` table and executed by a separate script — never inline. See "Deleting images" in README.md for the `recon/` scripts.
 
 ## Running the App
 
@@ -30,13 +30,13 @@ There is no test framework or linter configured.
 - `POST /api/logLevel` → change runtime log level
 - `GET /api/imageInfo/<index>` → DB mode: returns id, name, path, dtTaken, dtCreated, bytes, imgSize, camera, md5, and `missing`. Side effect: if the file is missing on disk, logs a WARN and inserts one `category='missing'` note (guarded by `hasMissingNote`). Never touches `fotos` or `actions`.
 - `POST /api/notes` → DB mode: insert a row into `notes` (category, rank, comment, img_id)
-- `POST /api/actions` → DB mode: insert a pending row into `actions`. Present but the UI does not currently call it — delete staging is done via SQL (see `design/SS_Document.md`).
+- `POST /api/actions` → DB mode: insert a pending row into `actions`. Present but the UI does not currently call it — delete staging is done by `recon/notesToActions.sql`.
 - `GET /images/*` → serves actual image files (folder mode: relative path under imageFolderPath, DB mode: index into image list → absolute path from the fotos row)
 
 **Libraries (`lib/`):**
 - `params.ts` — loads and validates `params.json` with defaults and type checking
 - `scanner.ts` — breadth-first image discovery (.jpg, .jpeg, .png, .gif, .webp), sorted by creation date (birthtime), respects maxDepth/maxFiles
-- `db.ts` — SQLite interface using Deno's `node:sqlite`. `queryImages()` selects `img_id, path, name` from `fotos` with the optional `whereClause` / `orderBy` fragments and a `maxFiles` limit; it does **not** touch the filesystem. It wraps the query in `WITH fotos AS (SELECT * FROM main.fotos WHERE status = 'ok') …` so the CTE name `fotos` shadows the real table everywhere — the whereClause and any self-reference in it (e.g. a correlated `FROM fotos b` for md5 dedup) only ever see live rows; `status='deleted'` rows are invisible. `getImageInfo()` returns per-image metadata incl. `md5` (selected as `MD5 AS md5`). `insertNote()` / `insertAction()` do parameterized inserts. `hasMissingNote()` checks for an existing `category='missing'` note. `moveToDeleted()` still targets a `deleted` table that no longer exists — **stale, unused by the server; see `design/reconcile.md`**.
+- `db.ts` — SQLite interface using Deno's `node:sqlite`. `queryImages()` selects `img_id, path, name` from `fotos` with the optional `whereClause` / `orderBy` fragments and a `maxFiles` limit; it does **not** touch the filesystem. It wraps the query in `WITH fotos AS (SELECT * FROM main.fotos WHERE status = 'ok') …` so the CTE name `fotos` shadows the real table everywhere — the whereClause and any self-reference in it (e.g. a correlated `FROM fotos b` for md5 dedup) only ever see live rows; `status='deleted'` rows are invisible. `getImageInfo()` returns per-image metadata incl. `md5` (selected as `MD5 AS md5`). `insertNote()` / `insertAction()` do parameterized inserts. `hasMissingNote()` checks for an existing `category='missing'` note. Deletion execution lives in `recon/executeDeletions.ts` (moves files to `../photos/trash`, sets `fotos.status='deleted'`); `recon/notesToActions.sql` stages `delete` notes as pending actions.
 - `logger.ts` — four-level logger (DEBUG/INFO/WARN/ERROR), writes to both console and `slideshow.log`, level changeable at runtime
 
 **Frontend (`static/`):**

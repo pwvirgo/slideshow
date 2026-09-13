@@ -59,23 +59,6 @@ export function fileExists(path: string): boolean {
   }
 }
 
-// Copy a fotos row into the deleted table and remove it from fotos.
-// Assumes `deleted` has the same columns as `fotos` (owned/created externally).
-export function moveToDeleted(db: DatabaseSync, imgId: number): boolean {
-  db.exec("BEGIN");
-  try {
-    db.prepare("INSERT INTO deleted SELECT * FROM fotos WHERE img_id = ?").run(imgId);
-    db.prepare("DELETE FROM fotos WHERE img_id = ?").run(imgId);
-    db.exec("COMMIT");
-    return true;
-  } catch (err) {
-    db.exec("ROLLBACK");
-    const message = err instanceof Error ? err.message : String(err);
-    logger.error(`Failed to move img_id=${imgId} to deleted table: ${message}`);
-    return false;
-  }
-}
-
 export interface QueryResult {
   images: DbImage[];
   totalFromDb: number;
