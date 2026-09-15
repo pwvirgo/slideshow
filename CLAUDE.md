@@ -34,9 +34,9 @@ There is no test framework or linter configured.
 - `GET /images/*` → serves actual image files (folder mode: relative path under imageFolderPath, DB mode: index into image list → absolute path from the fotos row)
 
 **Libraries (`lib/`):**
-- `params.ts` — loads and validates `params.json` with defaults and type checking
+- `params.ts` — loads and validates `params.json` with defaults and type checking. `dbFile(params)` builds the db file path from `dataDir` + `dbName`; use it instead of hard-coding `../photos`.
 - `scanner.ts` — breadth-first image discovery (.jpg, .jpeg, .png, .gif, .webp), sorted by creation date (birthtime), respects maxDepth/maxFiles
-- `db.ts` — SQLite interface using Deno's `node:sqlite`. `queryImages()` selects `img_id, path, name` from `fotos` with the optional `whereClause` / `orderBy` fragments and a `maxFiles` limit; it does **not** touch the filesystem. It wraps the query in `WITH fotos AS (SELECT * FROM main.fotos WHERE status = 'ok') …` so the CTE name `fotos` shadows the real table everywhere — the whereClause and any self-reference in it (e.g. a correlated `FROM fotos b` for md5 dedup) only ever see live rows; `status='deleted'` rows are invisible. `getImageInfo()` returns per-image metadata incl. `md5` (selected as `MD5 AS md5`). `insertNote()` / `insertAction()` do parameterized inserts. `hasMissingNote()` checks for an existing `category='missing'` note. Deletion execution lives in `recon/executeDeletions.ts` (moves files to `../photos/trash`, sets `fotos.status='deleted'`); `recon/notesToActions.sql` stages `delete` notes as pending actions.
+- `db.ts` — SQLite interface using Deno's `node:sqlite`. `queryImages()` selects `img_id, path, name` from `fotos` with the optional `whereClause` / `orderBy` fragments and a `maxFiles` limit; it does **not** touch the filesystem. It wraps the query in `WITH fotos AS (SELECT * FROM main.fotos WHERE status = 'ok') …` so the CTE name `fotos` shadows the real table everywhere — the whereClause and any self-reference in it (e.g. a correlated `FROM fotos b` for md5 dedup) only ever see live rows; `status='deleted'` rows are invisible. `getImageInfo()` returns per-image metadata incl. `md5` (selected as `MD5 AS md5`). `insertNote()` / `insertAction()` do parameterized inserts. `hasMissingNote()` checks for an existing `category='missing'` note. Deletion execution lives in `recon/executeDeletions.ts` (moves files flat into `trashDir` as `<name>`, or `<stem>_<img_id><ext>` on a name clash — older runs used `<img_id>_<name>`; sets `fotos.status='deleted'`; the user empties trash by hand); `recon/notesToActions.sql` stages `delete` notes as pending actions.
 - `logger.ts` — four-level logger (DEBUG/INFO/WARN/ERROR), writes to both console and `slideshow.log`, level changeable at runtime
 
 **Frontend (`static/`):**
@@ -49,7 +49,9 @@ There is no test framework or linter configured.
 `params.json` at project root:
 - `source` — `"folder"` or `"db"` (image source mode)
 - `imageFolderPath` — **folder mode only:** root directory to scan. Not used in DB mode — the `fotos` table stores absolute paths and they are served as-is. (Older docs said this was a base path prepended to DB paths; that is no longer true.)
-- `dbPath` — path to the SQLite database file, resolved from the project root (DB mode). Currently `../photos/photos3.db`.
+- `dataDir` — folder holding the database, resolved from the project root (DB mode). Currently `../photos`.
+- `dbName` — SQLite file name inside `dataDir`. Currently `photos3.db`. (`dataDir`+`dbName` replaced the old `dbPath`; `loadParams()` still splits an old `dbPath` with a WARN.)
+- `trashDir` — where `recon/executeDeletions.ts` moves deleted files; defaults to `<dataDir>/trash`. Must be on the same volume as the images (it uses rename).
 - `tableName` — present in `params.json` but **not yet wired into the code** (`fotos` is still hard-coded). Reserved for running the slideshow against temporary tables later.
 - `whereClause` — SQL `WHERE` fragment for the `fotos` query (DB mode, optional). Read-only fragments only — `insert/update/delete/drop/alter/create` and `;` are rejected. It sees only `status='ok'` rows (see `queryImages()` above), so it needs no `status` filter of its own.
 - `orderBy` — SQL `ORDER BY` fragment for the `fotos` query (DB mode, optional). Same read-only restriction.
@@ -90,7 +92,7 @@ Use "params" (not "config") throughout the codebase — this was an intentional 
 
 **Environment:**
 - Project is at `/Users/mac24/a/projects/slideshow` (also used on an iMac — paths may differ)
-- Database: `/Users/mac24/a/projects/photos/photos3.db` (`../photos/photos3.db` in params.json), built and owned by the `../photos` project
+- Database: `/Users/mac24/a/projects/photos/photos3.db` (`dataDir` `../photos` + `dbName` `photos3.db` in params.json), built and owned by the `../photos` project
 - Images are under `/Users/mac24/a/projects/photos/images3/` (absolute paths stored in `fotos.path`)
 - Remote: `github.com:pwvirgo/slideshow.git`
 

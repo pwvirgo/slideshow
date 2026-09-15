@@ -1,9 +1,11 @@
 {
   "source": "db",
   "imageFolderPath": "/Users/mac24/a/projects/photos/images3",
-  "dbPath": "../photos/photos3.db",
+  "dataDir": "../photos",
+  "dbName": "photos3.db",
+  "trashDir": "../photos/trash",
   "tableName": "fotos",
-  "whereClause": "path like '%arcy%'",
+  "whereClause": "path like '%macbook2012%'",
   "comment1": "this line is ignored",
   "orderBy": "md5, path, name",
   "displayTimeMs": 5000,

@@ -89,7 +89,7 @@ export function queryImages(db: DatabaseSync, whereClause: string,
   logger.debug(`DB query: ${sql} [${maxFiles}]`);
 
   const stmt = db.prepare(sql);
-  const rows = stmt.all(maxFiles) as FotoRow[];
+  const rows = stmt.all(maxFiles) as unknown as FotoRow[];
 
   const images: DbImage[] = rows.map((row) => ({
     id: row.img_id,

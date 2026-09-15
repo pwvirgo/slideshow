@@ -8,8 +8,17 @@
 -- - Skips images that already have a delete action (any status).
 -- - info = 'delete: notes <note_ids> — <comments>'.
 -- - 'missing' notes are ignored; notes rows are left as they are.
+-- - Results are shown on screen and appended to recon/recon.log (relative to
+--   the project root, so run from there). Errors go to the screen only, unless
+--   you add `2>> recon/recon.log` to the command line.
 
 .bail on
+
+.output |tee -a recon/recon.log
+.print ''
+.print '=== recon/notesToActions.sql ==='
+SELECT datetime('now','localtime') AS run_at;
+
 BEGIN;
 
 -- Refuse to run while pending actions remain (CHECK fails -> .bail rolls back).
@@ -52,3 +61,5 @@ WHERE skip_reason IS NULL;
 SELECT 'STAGED' AS result, changes() AS actions_inserted;
 
 COMMIT;
+
+.output stdout

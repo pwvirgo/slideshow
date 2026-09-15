@@ -45,9 +45,19 @@
 
     <!-- DB fields -->
     <div id="db-params">
+      <div class="row">
+        <div class="field">
+          <label for="dataDir">Data folder</label>
+          <input type="text" id="dataDir" class="input" value="" placeholder="e.g. ../photos">
+        </div>
+        <div class="field">
+          <label for="dbName">Database file</label>
+          <input type="text" id="dbName" class="input" value="" placeholder="e.g. photos3.db">
+        </div>
+      </div>
       <div class="field">
-        <label for="dbPath">Path to database</label>
-        <input type="text" id="dbPath" class="input" value="">
+        <label for="trashDir">Trash folder</label>
+        <input type="text" id="trashDir" class="input" value="" placeholder="e.g. ../photos/trash">
       </div>
       <div class="field">
         <label for="whereClause">where clause</label>

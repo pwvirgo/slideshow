@@ -46,7 +46,9 @@ Settings live in `params.json` at the project root.
 {
   "source": "db",
   "imageFolderPath": "/path/to/images",
-  "dbPath": "../photos/photos3.db",
+  "dataDir": "../photos",
+  "dbName": "photos3.db",
+  "trashDir": "../photos/trash",
   "whereClause": "camera LIKE '%Canon%'",
   "orderBy": "dt_taken DESC",
   "displayTimeMs": 5000,
@@ -59,7 +61,9 @@ Settings live in `params.json` at the project root.
 |-------|---------|
 | `source` | `"folder"` or `"db"` |
 | `imageFolderPath` | Folder mode only: the directory to scan. Not used in database mode — the `fotos` table stores absolute paths and they are served as-is. |
-| `dbPath` | Path to the SQLite file (database mode). Relative paths are resolved from the project root. |
+| `dataDir` | Folder holding the database (database mode). Relative paths are resolved from the project root. |
+| `dbName` | SQLite file name inside `dataDir`, e.g. `photos3.db`. (Replaces the old `dbPath`; an old `dbPath` is still split into these two with a warning.) |
+| `trashDir` | Where `recon/executeDeletions.ts` moves deleted files. Optional — defaults to `<dataDir>/trash`. Must be on the same volume as the images. |
 | `whereClause` | SQL `WHERE` fragment applied to the `fotos` query (database mode, optional). Read-only fragments only — anything that could modify data is rejected. It only ever sees live rows (`status='deleted'` images are filtered out automatically), so it needs no `status` condition. |
 | `orderBy` | SQL `ORDER BY` fragment for the `fotos` query (database mode, optional). Same read-only restriction. |
 | `displayTimeMs` | Milliseconds each image is shown (minimum 100). |
@@ -139,7 +143,7 @@ Deletion is never done by the slideshow itself. It is a two-step, run-by-hand
 process from the project root:
 
 1. **Execute pending deletes** — for every `actions` row with `action='delete'`
-   and `status='pending'`, move the file to `../photos/trash/<img_id>_<name>`,
+   and `status='pending'`, move the file to `<trashDir>/<name>` — or `<stem>_<img_id><ext>` if a file with that name is already in trash (older runs used `<img_id>_<name>`),
    set `fotos.status='deleted'` and the action to `done`. Duplicate pending
    deletes for the same image are removed first. If the file is already gone,
    the image is still marked `deleted` and the action is `failed` with
@@ -148,22 +152,24 @@ process from the project root:
    ```bash
    # 1. dry run: print what would happen, change nothing
    deno run --allow-read --allow-write recon/executeDeletions.ts
+
    # 2. real run on the first pending image only; check it before going on
    deno run --allow-read --allow-write recon/executeDeletions.ts --execute --limit 1
+   
    # 3. real run on everything still pending
    deno run --allow-read --allow-write recon/executeDeletions.ts --execute
    ```
 
-   Safe to re-run after an interruption: a file already in trash just gets its
-   database update finished. Images whose folder can't be found (disconnected
-   volume) are skipped. Emptying `../photos/trash` is a separate manual step.
+   Safe to re-run after an interruption: a file already in trash under an
+   img_id-tagged name just gets its database update finished. Images whose folder can't be found (disconnected
+   volume) are skipped. Emptying `trashDir` is a separate manual step — you do it when you choose.
 
 2. **Stage new deletes from notes** — turn `notes` with `category='delete'` into
    one pending `delete` action per image. Refuses to run while any action is
    still pending:
 
    ```bash
-   sqlite3 ../photos/photos3.db < recon/notesToActions.sql
+   sqlite3 <dataDir>/<dbName> < recon/notesToActions.sql   # currently ../photos/photos3.db
    ```
 
 ## Database

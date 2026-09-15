@@ -6,7 +6,9 @@
   var displayTimeMsInput = document.getElementById('displayTimeMs');
   var logLevelSelect = document.getElementById('logLevel');
   var sourceSelect = document.getElementById('source');
-  var dbPathInput = document.getElementById('dbPath');
+  var dataDirInput = document.getElementById('dataDir');
+  var dbNameInput = document.getElementById('dbName');
+  var trashDirInput = document.getElementById('trashDir');
   var whereClauseInput = document.getElementById('whereClause');
   var orderByInput = document.getElementById('orderBy');
   var imageFolderPathInput = document.getElementById('imageFolderPath');
@@ -54,7 +56,9 @@
       }
       logLevelSelect.value = params.logLevel;
       sourceSelect.value = params.source || 'folder';
-      dbPathInput.value = params.dbPath || '';
+      dataDirInput.value = params.dataDir || '';
+      dbNameInput.value = params.dbName || '';
+      trashDirInput.value = params.trashDir || '';
       whereClauseInput.value = params.whereClause || '';
       orderByInput.value = params.orderBy || '';
       imageFolderPathInput.value = params.imageFolderPath || '';
@@ -102,7 +106,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: sourceSelect.value,
-          dbPath: dbPathInput.value,
+          dataDir: dataDirInput.value,
+          dbName: dbNameInput.value,
+          trashDir: trashDirInput.value,
           whereClause: whereClauseInput.value,
           orderBy: orderByInput.value,
           imageFolderPath: imageFolderPathInput.value,

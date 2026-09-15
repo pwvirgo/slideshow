@@ -23,17 +23,18 @@ For every `actions` row with `action='delete'` and `status='pending'`:
 
 - **Duplicates** — if an image has more than one pending delete, the extras
   are deleted from `actions` first (the lowest `action_id` is kept).
-- **File present** — moved to `../photos/trash/<img_id>_<name>`, then in one
+- **File present** — moved to `<trashDir>/<name>` — or `<stem>_<img_id><ext>` if a file with that name is already in trash (older runs used `<img_id>_<name>`), then in one
   transaction `fotos.status='deleted'` and the action `done`. If that
   transaction fails the file is moved back.
 - **File already gone** — `fotos.status='deleted'`, action `failed` with
   `file gone` appended to `info`.
-- **File already in trash** (an earlier run was interrupted after the move) —
-  just finishes the database update.
+- **File already in trash** under an img_id-tagged name (an earlier run was
+  interrupted after the move) — just finishes the database update. A plain
+  `<name>` in trash can't be tied to one image, so that case reports "file gone".
 - **Folder not found** (volume disconnected?) — skipped, nothing changed.
 - **File in both places** — reported, left untouched.
 
-Files are never removed outright; emptying `../photos/trash` is a separate,
+Files are never removed outright; emptying `trashDir` (`../photos/trash`) is a separate,
 manual step once you're happy with the result.
 
 ### Steps
@@ -90,7 +91,8 @@ sqlite3 ../photos/photos3.db < recon/notesToActions.sql
 Until the trash is emptied, a deletion can be reversed by hand:
 
 ```bash
-mv "../photos/trash/<img_id>_<name>" "<fotos.path>/<name>"
+# look for <name>, <stem>_<img_id><ext>, or (older runs) <img_id>_<name>
+mv "../photos/trash/<name in trash>" "<fotos.path>/<name>"
 ```
 ```sql
 UPDATE fotos   SET status = 'ok' WHERE img_id = <img_id>;

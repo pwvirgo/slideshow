@@ -1,5 +1,5 @@
 import { logger, LogLevel } from "./lib/logger.ts";
-import { loadParams, Params } from "./lib/params.ts";
+import { loadParams, Params, dbFile } from "./lib/params.ts";
 import { scanImages } from "./lib/scanner.ts";
 import { openDb, queryImages, insertAction, insertNote, hasMissingNote, fileExists, getImageInfo, DbImage } from "./lib/db.ts";
 import { DatabaseSync } from "node:sqlite";
@@ -70,7 +70,7 @@ interface DbLoadResult {
 // image, when it's requested for display (see /api/imageInfo below).
 function loadDbImages(params: Params): DbLoadResult {
   try {
-    const db = openDb(params.dbPath);
+    const db = openDb(dbFile(params));
     const result = queryImages(db, params.whereClause, params.maxFiles, params.orderBy);
     return {
       dbImages: result.images,
@@ -150,7 +150,9 @@ async function main(): Promise<void> {
       return jsonResponse({
         source: params.source,
         imageFolderPath: params.imageFolderPath,
-        dbPath: params.dbPath,
+        dataDir: params.dataDir,
+        dbName: params.dbName,
+        trashDir: params.trashDir,
         whereClause: params.whereClause,
         orderBy: params.orderBy,
         displayTimeMs: params.displayTimeMs,
@@ -170,7 +172,10 @@ async function main(): Promise<void> {
 
         // Update fields from the form
         if (body.source !== undefined) current.source = body.source;
-        if (body.dbPath !== undefined) current.dbPath = body.dbPath;
+        if (body.dataDir !== undefined) current.dataDir = body.dataDir;
+        if (body.dbName !== undefined) current.dbName = body.dbName;
+        if (body.trashDir !== undefined) current.trashDir = body.trashDir;
+        if (body.dataDir !== undefined || body.dbName !== undefined) delete current.dbPath;
         if (body.whereClause !== undefined) current.whereClause = body.whereClause;
         if (body.orderBy !== undefined) current.orderBy = body.orderBy;
         if (body.imageFolderPath !== undefined) current.imageFolderPath = body.imageFolderPath;
@@ -216,8 +221,8 @@ async function main(): Promise<void> {
           // Database error (invalid path or SQL error)
           if (startupError.includes("unable to open database")) {
             errorInfo = {
-              error: `Cannot open database: ${params.dbPath}`,
-              suggestion: "Check that dbPath in params.json points to a valid SQLite file.",
+              error: `Cannot open database: ${dbFile(params)}`,
+              suggestion: "Check that dataDir and dbName in params.json point to a valid SQLite file.",
             };
           } else if (startupError.includes("syntax error")) {
             errorInfo = {
