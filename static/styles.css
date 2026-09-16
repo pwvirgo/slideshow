@@ -50,6 +50,12 @@ body.settings {
   overflow: auto;
 }
 
+/* The hidden attribute is the one source of truth for visibility --
+   it must beat component rules like .menu-btn-group .btn */
+[hidden] {
+  display: none !important;
+}
+
 /* ===========================================
    Reusable Components
    =========================================== */
@@ -170,11 +176,27 @@ body.settings {
 }
 
 /* Keyboard key styling */
-.key {
+kbd {
   background-color: var(--border);
   padding: 2px 8px;
   border-radius: 3px;
   font-family: monospace;
+  font-size: 14px;
+}
+
+/* Two-column key -> description list (menu help) */
+.keylist {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  align-items: center;
+  text-align: left;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.keylist dt {
+  justify-self: end;
 }
 
 /* Status messages */
@@ -201,7 +223,7 @@ body.settings {
 /* ===========================================
    Slideshow Page
    =========================================== */
-#slideshow-container {
+.stage {
   width: 100%;
   height: 100%;
   display: flex;
@@ -210,17 +232,17 @@ body.settings {
   position: relative;
 }
 
-#current-image {
+.slide-img {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-#preload-image {
+.preload {
   display: none;
 }
 
-#loading {
+.centered-msg {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -228,19 +250,20 @@ body.settings {
   font-size: 18px;
 }
 
-#pause-indicator {
+/* .indicator modifiers: position/background only */
+.indicator-right {
   right: 20px;
   padding: 10px 20px;
 }
 
-#action-indicator {
+.indicator-toast {
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(74, 158, 255, 0.85);
   z-index: 250;
 }
 
-#image-counter {
+.counter {
   position: fixed;
   bottom: 20px;
   left: 20px;
@@ -263,16 +286,6 @@ body.settings {
   word-break: break-all;
 }
 
-/* Action forms */
-.action-form {
-  min-width: 350px;
-  text-align: left;
-}
-
-.action-form h2 {
-  text-align: center;
-}
-
 /* Notes form */
 .notes-form {
   min-width: 480px;
@@ -288,8 +301,8 @@ body.settings {
   user-select: none;
 }
 
-/* Notes overlay is transparent so the image shows through */
-#notes-overlay {
+/* Transparent overlay, so the image shows through (Notes form) */
+.overlay-clear {
   background-color: transparent;
 }
 
@@ -309,17 +322,23 @@ body.settings {
   width: 100%;
 }
 
+/* Label / value list (Notes form header) */
 .form-info {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
   margin-bottom: 20px;
+  font-size: 14px;
 }
 
-.form-info p {
-  margin-bottom: 8px;
+.form-info dt {
   color: var(--text);
+  font-weight: bold;
 }
 
-.form-info span {
+.form-info dd {
   color: var(--text-muted);
+  min-height: 1em;
 }
 
 .path-text {
@@ -352,6 +371,30 @@ body.settings {
   color: var(--error);
 }
 
+/* Full-screen error / "photo missing" message inside #loading */
+.error-box {
+  max-width: 500px;
+  padding: 20px;
+  text-align: center;
+}
+
+.error-title {
+  margin-bottom: 15px;
+  color: var(--error);
+  font-size: 18px;
+}
+
+.error-detail {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.error-meta {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 textarea.input {
   resize: vertical;
   min-height: 60px;
@@ -365,14 +408,6 @@ textarea.input {
 }
 
 /* Menu overlay */
-.menu-section {
-  margin-top: 15px;
-  font-size: 12px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
 .menu-link {
   margin-top: 15px;
 }

@@ -376,7 +376,7 @@
   // Menu keyboard navigation
   function getMenuFocusable() {
     var items = [];
-    if (notesBtn && notesBtn.style.display !== 'none') items.push(notesBtn);
+    if (notesBtn && !notesBtn.hidden) items.push(notesBtn);
     if (resumeBtn) items.push(resumeBtn);
     if (paramsLink) items.push(paramsLink);
     return items;
@@ -396,11 +396,11 @@
     items[(idx - 1 + items.length) % items.length].focus();
   }
 
-  // Show error message
+  // Show error message (styled by .error-* classes in styles.css)
   function showError(title, suggestion) {
-    loadingEl.innerHTML = '<div style="text-align:center;max-width:500px;padding:20px;">' +
-      '<div style="color:#ff6b6b;font-size:18px;margin-bottom:15px;">' + title + '</div>' +
-      '<div style="color:#aaa;font-size:14px;">' + suggestion + '</div>' +
+    loadingEl.innerHTML = '<div class="error-box">' +
+      '<div class="error-title">' + title + '</div>' +
+      '<div class="error-detail">' + suggestion + '</div>' +
       '</div>';
   }
 
@@ -414,7 +414,7 @@
     var parts = [];
     if (currentFotoId !== null) parts.push('ID: ' + currentFotoId);
     if (currentPath) parts.push('Path: ' + currentPath);
-    var detail = parts.length ? '<div style="margin-top:8px;font-size:13px;color:#aaa;">' + parts.join(' &nbsp;|&nbsp; ') + '</div>' : '';
+    var detail = parts.length ? '<div class="error-meta">' + parts.join(' &nbsp;|&nbsp; ') + '</div>' : '';
     showError('Image failed to load' + detail,
       'Volume may be disconnected. Space to retry, ← → navigate, Esc for menu.');
   }
@@ -475,8 +475,7 @@
     // Notes form is open
     if (currentForm === 'notes') {
       var activeId = document.activeElement ? document.activeElement.id : '';
-      var notesInputIds = ['notes-title', 'notes-rename-to', 'notes-action',
-        'notes-status', 'notes-category', 'notes-location', 'notes-rank'];
+      var notesInputIds = ['notes-category', 'notes-rank'];
       if (notesInputIds.indexOf(activeId) !== -1) {
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -575,7 +574,7 @@
 
       // Show Notes button in menu for DB mode
       if (source === 'db' && notesBtn) {
-        notesBtn.style.display = 'block';
+        notesBtn.hidden = false;
       }
 
       if (!urlParams.has('displayTimeMs')) {

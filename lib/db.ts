@@ -24,29 +24,48 @@ export interface DbImage {
   name: string;
 }
 
-// Reject anything that looks like it could modify the database
-function validateSqlFragment(clause: string, label: string): void {
+// Sanity-check a params.json SQL fragment. This is NOT what stops a fragment
+// modifying the database — queryImages() runs it on a read-only connection
+// (openDbReadOnly), so SQLite itself refuses any write. Do not re-add a
+// keyword blacklist here: it used to reject `insert/update/delete/drop/alter/
+// create` as words, which also rejected legitimate read-only fragments whose
+// data contains one, e.g. `category='delete'` or `path LIKE '%to delete%'`.
+//
+// What remains is a usability guard. prepare() compiles only the first
+// statement and silently discards the rest, so a fragment containing ';' would
+// lose everything after it with no complaint — better to say so.
+function checkSqlFragment(clause: string, label: string): void {
   if (clause.trim() === "") return;
   if (clause.includes(";")) {
-    throw new Error(`${label} contains forbidden keyword: ;`);
-  }
-  const forbidden = ["insert", "update", "delete", "drop", "alter", "create"];
-  for (const word of forbidden) {
-    if (new RegExp(`\\b${word}\\b`, "i").test(clause)) {
-      throw new Error(`${label} contains forbidden keyword: ${word}`);
-    }
+    throw new Error(`${label} must be a single expression — remove the ';'`);
   }
 }
 
 export function openDb(dbPath: string): DatabaseSync {
   const db = new DatabaseSync(dbPath);
   // node:sqlite enforces foreign keys by default (unlike the sqlite3 CLI, which
-  // is off by default). actions/notes intentionally keep img_id referencing
-  // fotos rows that later get moved to `deleted` as an audit trail, so FK
-  // enforcement here would block that by design — keep it off to match the
-  // behavior this app was designed and tested against.
+  // is off by default). notes/actions keep img_id referencing fotos rows as an
+  // audit trail that must outlive the photo. Under the current soft delete
+  // (fotos.status='deleted') the row stays put, so nothing is orphaned today —
+  // `PRAGMA foreign_key_check` is clean. It is kept off for what comes next: a
+  // purge of soft-deleted rows would otherwise be blocked by, or cascade away,
+  // that audit trail. (An older scheme moved rows to a `deleted` table, which
+  // orphaned notes outright; that table is gone.)
   db.exec("PRAGMA foreign_keys = OFF;");
   logger.info(`Opened database: ${dbPath}`);
+  return db;
+}
+
+// Read-only handle, used for queries built from params.json fragments. SQLite
+// refuses every write on this connection ("attempt to write a readonly
+// database"), which is the real guard around hand-written SQL. No foreign_keys
+// pragma: that setting only affects writes.
+//
+// Unlike openDb(), this does not create the file if it is missing — a bad
+// dataDir/dbName fails loudly here instead of yielding an empty database.
+export function openDbReadOnly(dbPath: string): DatabaseSync {
+  const db = new DatabaseSync(dbPath, { readOnly: true });
+  logger.debug(`Opened database read-only: ${dbPath}`);
   return db;
 }
 
@@ -65,14 +84,19 @@ export interface QueryResult {
 }
 
 // Queries the fotos table only — does not touch the filesystem or mutate
-// catalog state. Missing-file detection happens lazily, per image, when it's
-// actually requested for display (see server.ts /api/imageInfo and /images
-// routes), not here at query/startup time. See design/missing_files.md.
-export function queryImages(db: DatabaseSync, whereClause: string,
+// catalog state. Missing-file detection is lazy, per image, when it's actually
+// requested for display (server.ts /api/imageInfo), or in bulk via
+// recon/findMissing.ts — never here. See design/missing_files.md.
+//
+// Takes the db *path*, not a handle, and opens its own read-only connection for
+// the duration of the query: the whereClause/orderBy fragments come from
+// params.json, and this way there is no writable handle for a caller to pass in
+// by mistake. The caller keeps its own openDb() handle for notes/actions.
+export function queryImages(dbPath: string, whereClause: string,
    maxFiles: number, orderBy = ""): QueryResult {
 
-  validateSqlFragment(whereClause, "WHERE clause");
-  validateSqlFragment(orderBy, "ORDER BY clause");
+  checkSqlFragment(whereClause, "WHERE clause");
+  checkSqlFragment(orderBy, "ORDER BY clause");
 
   // `status='deleted'` rows are soft-deleted: the app treats them as if they
   // were gone from the table (this replaced an older scheme that physically
@@ -88,8 +112,13 @@ export function queryImages(db: DatabaseSync, whereClause: string,
 
   logger.debug(`DB query: ${sql} [${maxFiles}]`);
 
-  const stmt = db.prepare(sql);
-  const rows = stmt.all(maxFiles) as unknown as FotoRow[];
+  const db = openDbReadOnly(dbPath);
+  let rows: FotoRow[];
+  try {
+    rows = db.prepare(sql).all(maxFiles) as unknown as FotoRow[];
+  } finally {
+    db.close();
+  }
 
   const images: DbImage[] = rows.map((row) => ({
     id: row.img_id,
@@ -164,4 +193,23 @@ export function hasMissingNote(db: DatabaseSync, imgId: number): boolean {
     "SELECT 1 FROM notes WHERE img_id = ? AND LOWER(TRIM(category)) = 'missing' LIMIT 1"
   ).get(imgId);
   return row !== undefined;
+}
+
+// Clears the 'missing' flag for an image whose file has come back, returning
+// how many notes were removed. A 'missing' note is a cached observation, not
+// testimony: it is re-derivable by re-scanning, so leaving a stale one in place
+// is worse than dropping it. The history lives in recon/recon.log, which
+// records every insert and delete. Used by recon/findMissing.ts.
+//
+// Deletes the note whatever comment it carries — deliberate, so a scan never
+// has to decide whether a comment makes a stale flag worth keeping.
+export function deleteMissingNotes(db: DatabaseSync, imgId: number): number {
+  const stmt = db.prepare(
+    "DELETE FROM notes WHERE img_id = ? AND LOWER(TRIM(category)) = 'missing'"
+  );
+  const deleted = Number(stmt.run(imgId).changes);
+  if (deleted > 0) {
+    logger.info(`Missing note(s) cleared, img_id=${imgId}, count=${deleted}`);
+  }
+  return deleted;
 }

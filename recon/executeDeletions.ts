@@ -16,8 +16,14 @@
 //
 // Trash is flat and never emptied here — the user empties it by hand.
 //
-// Dry-run by default. Db file and trash folder come from params.json
-// (dataDir/dbName, trashDir); --db overrides the db file only.
+// Guard: if the shared image root (params.imageFolderPath) is not there, the
+// run aborts without changing anything — the unmounted-volume case. It does NOT
+// check each image's own folder: a folder you deleted on purpose is a file-gone,
+// not a reason to leave the action pending.
+//
+// Dry-run by default. Db file, trash folder and image root come from
+// params.json (dataDir/dbName, trashDir, imageFolderPath); --db overrides the
+// db file only.
 // Prints a counts summary only; --verbose adds a line per image. Anything
 // needing attention (failure, conflict, skip) is always printed. Everything
 // printed is also appended to recon/recon.log (relative to the project root,
@@ -82,11 +88,26 @@ async function main(): Promise<void> {
   logger.setLogLevel(params.logLevel);
   const dbPath = argValue("--db") ?? dbFile(params);
   const trashDir = params.trashDir.replace(/\/+$/, "");
-  const db = openDb(dbPath);
+  const imageRoot = params.imageFolderPath.replace(/\/+$/, "");
 
   say("");
   say(`=== ${SCRIPT} — ${execute ? "EXECUTING" : "DRY RUN"} ===`);
   say(`run_at ${new Date().toLocaleString()}   db ${dbPath}   trash ${trashDir}\n`);
+
+  // Unmounted-volume guard, checked once for the whole run — the same guard
+  // recon/findMissing.ts uses. This replaces a per-image check of each row's
+  // own folder: that could not tell a disconnected volume from a folder the
+  // owner deliberately deleted, so it skipped the latter and left its action
+  // pending forever, which in turn blocked notesToActions.sql from ever
+  // staging anything new. Checking the one shared root distinguishes the two.
+  if (!dirExists(imageRoot)) {
+    say(`ABORT — image root not found: ${imageRoot}`);
+    say("The library looks unavailable (volume not mounted?). Nothing was changed.");
+    logger.error(`executeDeletions: image root not found, aborted: ${imageRoot}`);
+    Deno.exit(1);
+  }
+
+  const db = openDb(dbPath);
 
   const duplicateWhere =
     `action = 'delete' AND status = 'pending' AND action_id NOT IN (
@@ -193,12 +214,9 @@ async function main(): Promise<void> {
       continue;
     }
 
-    if (!dirExists(row.path)) {
-      counts.skipped++;
-      say(`SKIP       ${tag} — folder not found (volume disconnected?): ${row.path}`);
-      continue;
-    }
-
+    // No per-folder check here: the image root was verified once at startup.
+    // A missing folder at this point means the owner deleted it, which is a
+    // file-gone, not a reason to freeze the action.
     counts.fileGone++;
     detail(`${execute ? "FILE GONE " : "WOULD MARK"} ${tag} — file gone: ${src}`);
     if (execute) {
@@ -220,7 +238,7 @@ async function main(): Promise<void> {
   say(`  resumed          ${counts.resumed}\t(already in trash, db ${label}finished)`);
   say(`  file gone        ${counts.fileGone}\t(fotos ${label}deleted, action failed)`);
   say(`  failed           ${counts.failed}\t(nothing changed)`);
-  say(`  skipped          ${counts.skipped}\t(folder missing or file in both places)`);
+  say(`  skipped          ${counts.skipped}\t(file in both places)`);
   if (outOfSync.length > 0) {
     say(`\nWARNING: ${outOfSync.length} 'done' delete(s) still have the file at the original path, e.g.:`);
     outOfSync.slice(0, 5).forEach((p) => say(`  ${p}`));

@@ -70,8 +70,10 @@ interface DbLoadResult {
 // image, when it's requested for display (see /api/imageInfo below).
 function loadDbImages(params: Params): DbLoadResult {
   try {
+    // queryImages opens its own read-only connection from the path; this
+    // handle stays writable for the notes/actions inserts that follow.
     const db = openDb(dbFile(params));
-    const result = queryImages(db, params.whereClause, params.maxFiles, params.orderBy);
+    const result = queryImages(dbFile(params), params.whereClause, params.maxFiles, params.orderBy);
     return {
       dbImages: result.images,
       db,
