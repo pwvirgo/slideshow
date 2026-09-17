@@ -28,7 +28,7 @@ There is no test framework or linter configured.
 - `GET /api/params` → current params.json values
 - `POST /api/params` → write editable params to params.json (takes effect on restart)
 - `POST /api/logLevel` → change runtime log level
-- `GET /api/imageInfo/<index>` → DB mode: returns id, name, path, dtTaken, dtCreated, bytes, imgSize, camera, md5, and `missing`. Side effect: if the file is missing on disk, logs a WARN and inserts one `category='missing'` note (guarded by `hasMissingNote`). Never touches `fotos` or `actions`.
+- `GET /api/imageInfo/<index>` → DB mode: returns id, name, path, dtTaken, dtCreated, bytes, imgSize, camera, md5, `duration`, `missing`, and `displayable` (false for extensions an `<img>` can't render — .avi/.mp4/.nef/.psd…; logs a WARN with img_id and path when so). Side effect: if the file is missing on disk, logs a WARN and inserts one `category='missing'` note (guarded by `hasMissingNote`). Never touches `fotos` or `actions`.
 - `POST /api/notes` → DB mode: insert a row into `notes` (category, rank, comment, img_id)
 - `POST /api/actions` → DB mode: insert a pending row into `actions`. Present but the UI does not currently call it — delete staging is done by `recon/notesToActions.sql`.
 - `GET /images/*` → serves actual image files (folder mode: relative path under imageFolderPath, DB mode: index into image list → absolute path from the fotos row)
@@ -40,7 +40,7 @@ There is no test framework or linter configured.
 - `logger.ts` — four-level logger (DEBUG/INFO/WARN/ERROR), writes to both console and `slideshow.log`, level changeable at runtime
 
 **Frontend (`static/`):**
-- `app.js` — slideshow controller (IIFE). Manages image cycling, preloading, pause/resume, keyboard controls (Space, Esc, arrows, `I` info overlay, `N` notes). In DB mode: fetches per-image metadata via `/api/imageInfo/<index>` before loading each slide — if that response says `missing: true`, shows a brief "Photo missing — skipped" message for `displayTimeMs` and advances instead of loading a broken image. Shows a draggable Notes form for annotating images, saved to the `notes` table via `POST /api/notes`. The `I` info overlay shows IMG_ID + MD5, name, camera, path, dates, size.
+- `app.js` — slideshow controller (IIFE). Manages image cycling, preloading, pause/resume, keyboard controls (Space, Esc, arrows, `I` info overlay, `N` notes). In DB mode: fetches per-image metadata via `/api/imageInfo/<index>` before loading each slide — if that response says `missing: true`, shows a brief "Photo missing — skipped" message for `displayTimeMs` and advances instead of loading a broken image; `displayable: false` does the same with a "Can't display this file" panel showing img_id/name/path/size/duration. The `I` and `N` keys also work on the load-error box (the notes-form branch is checked before the error-state branch in the keydown handler, so typing in the form isn't eaten by the retry keys). Shows a draggable Notes form for annotating images, saved to the `notes` table via `POST /api/notes`. The `I` info overlay shows IMG_ID + MD5, name, camera, path, dates, size.
 - `params.js` — settings page controller (IIFE). Loads/displays params, controls log level via API, toggles UI between folder and DB source modes.
 - `styles.css` — dark theme, fullscreen image display with `object-fit: contain`
 

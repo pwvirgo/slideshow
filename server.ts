@@ -16,7 +16,22 @@ const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".gif": "image/gif",
   ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".svg": "image/svg+xml",
 };
+
+// Extensions an <img> tag can actually render. Deliberately wider than
+// scanner.ts's IMAGE_EXTENSIONS: bmp/svg display fine but aren't collected in
+// folder mode. Anything outside this set (.avi, .mp4, .nef, .psd, ...) is
+// reported as displayable:false so the frontend shows its path instead of
+// handing the browser a file it can't decode.
+const DISPLAYABLE_EXTENSIONS = new Set(
+  [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"],
+);
+
+function canDisplay(name: string): boolean {
+  return DISPLAYABLE_EXTENSIONS.has(name.substring(name.lastIndexOf(".")).toLowerCase());
+}
 
 function getMimeType(path: string): string {
   const ext = path.substring(path.lastIndexOf(".")).toLowerCase();
@@ -293,6 +308,13 @@ async function main(): Promise<void> {
           insertNote(db, img.id, "missing", 5, `File not found: ${img.fullPath}`);
         }
       }
+      // Videos and raw/editor formats are in `fotos` too; flag them here (the
+      // same place missing files are flagged) so the WARN lands in
+      // slideshow.log with the img_id and path the frontend will display.
+      const displayable = canDisplay(img.name);
+      if (!missing && !displayable) {
+        logger.warn(`Cannot display img_id=${img.id}: ${img.fullPath}`);
+      }
       const info = db ? getImageInfo(db, img.id) : null;
       return jsonResponse({
         id: img.id,
@@ -304,7 +326,9 @@ async function main(): Promise<void> {
         imgSize: info?.imgSize || null,
         camera: info?.camera || null,
         md5: info?.md5 || null,
+        duration: info?.duration || null,
         missing,
+        displayable,
       });
     }
 

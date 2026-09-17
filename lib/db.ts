@@ -139,11 +139,13 @@ export interface ImageInfo {
   imgSize: string | null;
   camera: string | null;
   md5: string | null;
+  // Only set for videos; shown on the "can't display" panel.
+  duration: string | null;
 }
 
 export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null {
   const stmt = db.prepare(
-    "SELECT img_id, path, name, dt_taken, dt_created, bytes, img_size, camera, MD5 AS md5 FROM fotos WHERE img_id = ?"
+    "SELECT img_id, path, name, dt_taken, dt_created, bytes, img_size, camera, duration, MD5 AS md5 FROM fotos WHERE img_id = ?"
   );
   const row = stmt.get(fotoId) as FotoRow | undefined;
   if (!row) return null;
@@ -158,6 +160,9 @@ export function getImageInfo(db: DatabaseSync, fotoId: number): ImageInfo | null
     imgSize: row.img_size || null,
     camera: row.camera || null,
     md5: row.md5 || null,
+    // `fotos` stores '-' rather than NULL for stills; normalize so callers
+    // can just test for a value.
+    duration: row.duration && row.duration !== '-' ? row.duration : null,
   };
 }
 

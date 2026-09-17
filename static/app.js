@@ -59,6 +59,7 @@
   var currentImgSize = '';
   var currentCamera = '';
   var currentMd5 = '';
+  var currentDuration = '';
   var isInfoVisible = false;
 
   // Show a brief toast for action feedback
@@ -89,6 +90,7 @@
     currentImgSize = '';
     currentCamera = '';
     currentMd5 = '';
+    currentDuration = '';
     updateInfoOverlay();
   }
 
@@ -115,6 +117,7 @@
       currentImgSize = data.imgSize || '';
       currentCamera = data.camera || '';
       currentMd5 = data.md5 || '';
+      currentDuration = data.duration || '';
       updateInfoOverlay();
       return data;
     } catch {
@@ -134,7 +137,8 @@
       'Camera: ' + (currentCamera || 'Unknown') + '\n' +
       'Path: ' + (currentPath || 'Unknown') + '\n' +
       'Taken: ' + (currentDtTaken || 'Unknown') + '  Created: ' + (currentDtCreated || 'Unknown') + '\n' +
-      kb + (currentImgSize ? '  ' + currentImgSize : '');
+      kb + (currentImgSize ? '  ' + currentImgSize : '') +
+        (currentDuration ? '  ' + currentDuration : '');
   }
 
   function toggleInfo() {
@@ -276,6 +280,14 @@
       showMissingImage(info);
       return;
     }
+    // Videos (.avi, .mp4, ...) and raw/editor formats live in `fotos` too.
+    // Handle them like missing files — show the identifying details and move
+    // on — rather than letting the <img> load fail into the error state,
+    // which pauses the slideshow and swallows the I/N keys.
+    if (info && info.displayable === false) {
+      showUndisplayable(info);
+      return;
+    }
 
     loadingEl.style.display = 'none';
     currentImage.style.display = 'block';
@@ -301,6 +313,25 @@
     if (info.id !== null && info.id !== undefined) detail.push('IMG_ID ' + info.id);
     if (info.path) detail.push(info.path);
     showError('Photo missing — skipped', detail.join('<br>'));
+    scheduleNext();
+  }
+
+  // Show what we know about a file the browser can't render, for displayTimeMs,
+  // then advance. Mirrors showMissingImage: currentIndex is already this image,
+  // so scheduleNext() moves on normally and I/N still work (no error state).
+  function showUndisplayable(info) {
+    currentImage.style.display = 'none';
+    loadingEl.style.display = 'block';
+    imageCounter.textContent = (currentIndex + 1) + ' / ' + images.length;
+    var detail = [];
+    if (info.id !== null && info.id !== undefined) detail.push('img_id: ' + info.id);
+    if (info.name) detail.push(info.name);
+    if (info.path) detail.push(info.path);
+    var extra = [];
+    if (info.imgSize) extra.push(info.imgSize);
+    if (info.duration) extra.push(info.duration);
+    if (extra.length) detail.push(extra.join('  '));
+    showError("Can't display this file — skipped", detail.join('<br>'));
     scheduleNext();
   }
 
@@ -412,7 +443,7 @@
     currentImage.style.display = 'none';
     loadingEl.style.display = 'block';
     var parts = [];
-    if (currentFotoId !== null) parts.push('ID: ' + currentFotoId);
+    if (currentFotoId !== null) parts.push('img_id: ' + currentFotoId);
     if (currentPath) parts.push('Path: ' + currentPath);
     var detail = parts.length ? '<div class="error-meta">' + parts.join(' &nbsp;|&nbsp; ') + '</div>' : '';
     showError('Image failed to load' + detail,
@@ -439,6 +470,28 @@
 
   // Keyboard handler
   document.addEventListener('keydown', function (e) {
+    // Notes form is open
+    if (currentForm === 'notes') {
+      var activeId = document.activeElement ? document.activeElement.id : '';
+      var notesInputIds = ['notes-category', 'notes-rank'];
+      if (notesInputIds.indexOf(activeId) !== -1) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeNotesForm();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          submitNote();
+        }
+        return;
+      }
+      // In the note textarea: Enter inserts newline (browser default); only Escape is intercepted
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeNotesForm();
+      }
+      return;
+    }
+
     // Error state: Esc → Control Panel; Space → retry if image load error
     if (isErrorState) {
       if (e.key === 'Escape') {
@@ -466,33 +519,19 @@
         isErrorState = false;
         loadingEl.style.display = 'none';
         prevImage();
+      } else if (e.key === 'i' || e.key === 'I') {
+        // Info/Notes stay available on the error box: the metadata is already
+        // fetched, and a file that won't load is exactly one worth annotating.
+        e.preventDefault();
+        toggleInfo();
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        openNotesForm();
       }
       return;
     }
 
     if (images.length === 0) return;
-
-    // Notes form is open
-    if (currentForm === 'notes') {
-      var activeId = document.activeElement ? document.activeElement.id : '';
-      var notesInputIds = ['notes-category', 'notes-rank'];
-      if (notesInputIds.indexOf(activeId) !== -1) {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          closeNotesForm();
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          submitNote();
-        }
-        return;
-      }
-      // In the note textarea: Enter inserts newline (browser default); only Escape is intercepted
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeNotesForm();
-      }
-      return;
-    }
 
     // Menu is open
     if (isMenuOpen) {
