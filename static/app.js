@@ -629,7 +629,7 @@
 
       if (images.length === 0) {
         isErrorState = true;
-        showError('No images found', 'Check params.json settings and restart the server. Press Esc to open Control Panel.');
+        showError('No images found', 'Check the settings in ' + (data.paramsFile || 'your params file') + ' and restart the server. Press Esc to open Control Panel.');
         return;
       }
 

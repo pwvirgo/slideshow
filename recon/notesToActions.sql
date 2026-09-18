@@ -2,7 +2,10 @@
 --
 -- Stage pending 'delete' actions from notes with category 'delete'.
 -- Run AFTER recon/executeDeletions.ts has cleared the existing pending actions:
---   sqlite3 ../photos/photos3.db < recon/notesToActions.sql
+--   sqlite3 -init /dev/null -batch ../photos/photos3.db < recon/notesToActions.sql
+--
+-- -init /dev/null -batch skips ~/.sqliterc, so what lands in recon/recon.log
+-- does not depend on whose machine ran it. Both flags are per-invocation.
 --
 -- - One action per img_id, however many delete notes it has.
 -- - Skips images that already have a delete action (any status).
@@ -15,10 +18,19 @@
 
 .bail on
 
+-- Set the output format here rather than inheriting it: the run is invoked
+-- with -init /dev/null, so nothing else defines it, and recon/recon.log should
+-- be self-describing. list mode (not column) keeps long paths untruncated.
+.headers on
+.mode list
+
 .output |tee -a recon/recon.log
 .print ''
 .print '=== recon/notesToActions.sql ==='
 SELECT datetime('now','localtime') AS run_at;
+-- Which database this run touched: the log is otherwise silent about it, and
+-- the db comes from the command line, not from any params file.
+SELECT file AS db FROM pragma_database_list WHERE name = 'main';
 
 BEGIN;
 

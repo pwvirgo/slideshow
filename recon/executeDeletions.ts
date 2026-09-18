@@ -2,17 +2,18 @@
 //
 // Executes pending 'delete' actions. First removes duplicate pending delete
 // actions (keeps the lowest action_id per image). Then for each image: move
-// the file into <trashDir>/<name> (or <stem>_<img_id><ext> if that name is
-// already taken in trash), and in ONE transaction set
+// the file into <trashDir>/<stem>_<img_id><ext>, and in ONE transaction set
 // fotos.status='deleted' and the action to 'done'. If the file is already
 // gone: fotos.status='deleted', action 'failed' with 'file gone' in info.
 // Emptying the trash is a separate, manual step.
 //
 // Re-runnable after a crash: each image's state is re-derived from where the
-// file actually is (original path, trash, or neither). "In trash" is only
-// recognised under an img_id-tagged name (<stem>_<img_id><ext>, or the older
-// <img_id>_<name>); a plain <name> in trash can't be told apart from another
-// image's file, so a crash in that window reports the image as "file gone".
+// file actually is (original path, trash, or neither). That only works because
+// every file in trash carries its img_id in the name: a plain <name> could not
+// be told apart from another image's file, so an interrupted run would report
+// a deletion that had in fact succeeded as "file gone" and mark its action
+// 'failed' — a wrong entry in the permanent record. Trash names are ugly on
+// purpose; the trash is disposable, the actions table is not.
 //
 // Trash is flat and never emptied here — the user empties it by hand.
 //
@@ -21,16 +22,17 @@
 // check each image's own folder: a folder you deleted on purpose is a file-gone,
 // not a reason to leave the action pending.
 //
-// Dry-run by default. Db file, trash folder and image root come from
-// params.json (dataDir/dbName, trashDir, imageFolderPath); --db overrides the
-// db file only.
+// Dry-run by default. Db file, trash folder and image root all come from the
+// params file named by --params (dataDir/dbName, trashDir, imageFolderPath).
+// That file is the only way to say which data a run acts on: --params is
+// required, and its `source` must be "db".
 // Prints a counts summary only; --verbose adds a line per image. Anything
 // needing attention (failure, conflict, skip) is always printed. Everything
 // printed is also appended to recon/recon.log (relative to the project root,
 // so run from there), same log the notesToActions.sql run writes to.
-//   deno run --allow-read --allow-write recon/executeDeletions.ts [--execute] [--limit N] [--db PATH] [--verbose]
+//   deno run --allow-read --allow-write recon/executeDeletions.ts --params=<file> [--execute] [--limit N] [--verbose]
 
-import { loadParams, dbFile } from "../lib/params.ts";
+import { loadParams, paramsPathFromArgs, noParamsFileMessage, sourceMismatch, ParamsError, dbFile } from "../lib/params.ts";
 import { openDb, fileExists } from "../lib/db.ts";
 import { logger } from "../lib/logger.ts";
 
@@ -84,15 +86,31 @@ async function main(): Promise<void> {
   const limit = argValue("--limit") ? Number(argValue("--limit")) : Infinity;
   if (!(limit > 0)) throw new Error("--limit must be a positive number");
 
-  const params = await loadParams();
+  const paramsFile = paramsPathFromArgs();
+  if (!paramsFile) {
+    say(`ABORT — ${noParamsFileMessage()}`);
+    logger.error(`executeDeletions: no params file given`);
+    Deno.exit(1);
+  }
+  const params = await loadParams(paramsFile);
   logger.setLogLevel(params.logLevel);
-  const dbPath = argValue("--db") ?? dbFile(params);
+  // This script only makes sense against the photo database. The params file
+  // says so itself, in `source` — a folder-mode file would hand us the wrong
+  // dataDir/dbName and image root, and we would happily act on them.
+  const mismatch = sourceMismatch(params, "db", paramsFile);
+  if (mismatch) {
+    say(`ABORT — ${mismatch}`);
+    logger.error(`executeDeletions: ${mismatch}`);
+    Deno.exit(1);
+  }
+  const dbPath = dbFile(params);
   const trashDir = params.trashDir.replace(/\/+$/, "");
   const imageRoot = params.imageFolderPath.replace(/\/+$/, "");
 
   say("");
   say(`=== ${SCRIPT} — ${execute ? "EXECUTING" : "DRY RUN"} ===`);
-  say(`run_at ${new Date().toLocaleString()}   db ${dbPath}   trash ${trashDir}\n`);
+  say(`run_at ${new Date().toLocaleString()}   params ${paramsFile}`);
+  say(`db ${dbPath}   trash ${trashDir}\n`);
 
   // Unmounted-volume guard, checked once for the whole run — the same guard
   // recon/findMissing.ts uses. This replaces a per-image check of each row's
@@ -161,14 +179,14 @@ async function main(): Promise<void> {
 
   for (const row of rows) {
     const src = `${row.path}/${row.name}`;
-    const plainDst = `${trashDir}/${row.name}`;
     const taggedDst = `${trashDir}/${taggedName(row.name, row.img_id)}`;
     const legacyDst = `${trashDir}/${row.img_id}_${row.name}`;
     const trashed = [taggedDst, legacyDst].find(fileExists);
     const inPlace = fileExists(src);
     const inTrash = trashed !== undefined;
-    // New moves use the plain name unless another file already has it.
-    const dst = trashed ?? (fileExists(plainDst) ? taggedDst : plainDst);
+    // Always the tagged name, so a file found in trash on a later run is
+    // provably this image's and the resume path can finish the db update.
+    const dst = trashed ?? taggedDst;
     const tag = `action_id=${row.action_id} img_id=${row.img_id}`;
 
     if (inPlace && inTrash) {
@@ -248,4 +266,9 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+main().catch((error) => {
+  // Exit 1 on a bad start rather than running on half-loaded settings.
+  // A ParamsError has already said its piece; anything else has not.
+  if (!(error instanceof ParamsError)) console.error(error);
+  Deno.exit(1);
+});

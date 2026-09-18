@@ -9,8 +9,8 @@
 //   file there, not flagged        -> nothing
 //
 // The server already does the first case lazily, one image at a time, as each
-// slide is about to load (server.ts /api/imageInfo). That only ever sees images
-// the current params.json whereClause selects, so files removed outside that
+// slide is about to load (slideshow.ts /api/imageInfo). That only ever sees images
+// the current whereClause selects, so files removed outside that
 // selection go unnoticed, and a note is never retracted once written. This is
 // the bulk, whole-catalog version, and it retracts.
 //
@@ -29,14 +29,16 @@
 // check each image's own folder — a folder you deleted on purpose should still
 // be flagged.
 //
-// Dry-run by default. Db file and image root come from params.json
-// (dataDir/dbName, imageFolderPath); --db overrides the db file only.
+// Dry-run by default. Db file and image root both come from the params file
+// named by --params (dataDir/dbName, imageFolderPath). That file is the only
+// way to say which data a run acts on: --params is required, and its `source`
+// must be "db".
 // Prints a counts summary; --verbose adds a line per image. Everything printed
 // is also appended to recon/recon.log (relative to the project root, so run
 // from there), the same log notesToActions.sql and executeDeletions.ts write to.
-//   deno run --allow-read --allow-write recon/findMissing.ts [--execute] [--limit N] [--db PATH] [--verbose]
+//   deno run --allow-read --allow-write recon/findMissing.ts --params=<file> [--execute] [--limit N] [--verbose]
 
-import { loadParams, dbFile } from "../lib/params.ts";
+import { loadParams, paramsPathFromArgs, noParamsFileMessage, sourceMismatch, ParamsError, dbFile } from "../lib/params.ts";
 import {
   openDb,
   fileExists,
@@ -89,14 +91,30 @@ async function main(): Promise<void> {
   const limit = argValue("--limit") ? Number(argValue("--limit")) : Infinity;
   if (!(limit > 0)) throw new Error("--limit must be a positive number");
 
-  const params = await loadParams();
+  const paramsFile = paramsPathFromArgs();
+  if (!paramsFile) {
+    say(`ABORT — ${noParamsFileMessage()}`);
+    logger.error(`findMissing: no params file given`);
+    Deno.exit(1);
+  }
+  const params = await loadParams(paramsFile);
   logger.setLogLevel(params.logLevel);
-  const dbPath = argValue("--db") ?? dbFile(params);
+  // This script only makes sense against the photo database. The params file
+  // says so itself, in `source` — a folder-mode file would hand us the wrong
+  // dataDir/dbName and image root, and we would happily act on them.
+  const mismatch = sourceMismatch(params, "db", paramsFile);
+  if (mismatch) {
+    say(`ABORT — ${mismatch}`);
+    logger.error(`findMissing: ${mismatch}`);
+    Deno.exit(1);
+  }
+  const dbPath = dbFile(params);
   const imageRoot = params.imageFolderPath.replace(/\/+$/, "");
 
   say("");
   say(`=== ${SCRIPT} — ${execute ? "EXECUTING" : "DRY RUN"} ===`);
-  say(`run_at ${new Date().toLocaleString()}   db ${dbPath}   root ${imageRoot}\n`);
+  say(`run_at ${new Date().toLocaleString()}   params ${paramsFile}`);
+  say(`db ${dbPath}   root ${imageRoot}\n`);
 
   // Unmounted-volume guard: bail before writing anything.
   if (!dirExists(imageRoot)) {
@@ -162,4 +180,9 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+main().catch((error) => {
+  // Exit 1 on a bad start rather than running on half-loaded settings.
+  // A ParamsError has already said its piece; anything else has not.
+  if (!(error instanceof ParamsError)) console.error(error);
+  Deno.exit(1);
+});

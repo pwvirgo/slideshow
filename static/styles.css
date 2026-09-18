@@ -120,6 +120,12 @@ body.settings {
   border-color: var(--accent);
 }
 
+/* Display-only value shown in an .input box (e.g. the params file). */
+.input[readonly] {
+  opacity: 0.7;
+  cursor: default;
+}
+
 /* Overlays */
 .overlay {
   position: fixed;

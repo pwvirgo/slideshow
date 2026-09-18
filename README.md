@@ -15,18 +15,30 @@ No build step — Deno runs the TypeScript directly.
 ## Running
 
 ```bash
-deno run --allow-read --allow-net --allow-write server.ts
+PARAMS=params_db.json    # which settings file this run uses
+
+deno run --allow-read --allow-net --allow-write slideshow.ts --params=$PARAMS
 ```
 
 Then open <http://localhost:8000>.
 
-Permissions: `--allow-read` (images, `params.json`, the database), `--allow-net`
-(HTTP server on port 8000), `--allow-write` (`slideshow.log`, and note inserts in
-database mode).
+`--params=<file>` is **required** — there is no default. The repository ships
+`params_db.json` (database mode) and `params_folder.json` (folder mode); run
+with no flag and the server lists the files it can see and exits. Keeping one
+file per mode is the point: the file's own `source` key is what ties it to the
+app that may use it, so the recon scripts (which take the same flag) refuse to
+run against a `"folder"` file, and the Control Panel always saves back to the
+file the server was started with.
+
+Permissions: `--allow-read` (images, the params file, the database),
+`--allow-net` (HTTP server on port 8000), `--allow-write` (`slideshow.log`, and
+note inserts in database mode).
 
 ## Configuration
 
-Settings live in `params.json` at the project root.
+Settings live in a JSON file at the project root, named by `--params=`.
+`source` is set in the file only; the Control Panel shows it read-only
+alongside the file name.
 
 **Folder mode** — scan a directory tree for images:
 
@@ -81,8 +93,8 @@ Browse to <http://localhost:8000/params> (or press <kbd>Esc</kbd> → **Settings
 
 - **Display time** and **Logging detail** take effect immediately.
 - **Source**, **database path**, **where clause**, **order by**, **image folder
-  path**, **max depth**, and **max files** are written to `params.json` on
-  **Save** and take effect after a server restart.
+  path**, **max depth**, and **max files** are written back to the params file
+  the server was started with on **Save**, and take effect after a restart.
 
 ## Using the Slideshow
 
@@ -142,14 +154,16 @@ deleted outside that selection go unnoticed. To sweep the whole catalog, run the
 scanner from the project root:
 
 ```bash
+PARAMS=params_db.json    # which settings file this scan uses
+
 # dry run: print what would change, change nothing
-deno run --allow-read --allow-write recon/findMissing.ts
+deno run --allow-read --allow-write recon/findMissing.ts --params=$PARAMS
 
 # add a line per image
-deno run --allow-read --allow-write recon/findMissing.ts --verbose
+deno run --allow-read --allow-write recon/findMissing.ts --params=$PARAMS --verbose
 
 # apply it
-deno run --allow-read --allow-write recon/findMissing.ts --execute
+deno run --allow-read --allow-write recon/findMissing.ts --params=$PARAMS --execute
 ```
 
 It walks every `status='ok'` row and keeps the `missing` notes in step with the
@@ -202,21 +216,26 @@ Deletion is never done by the slideshow itself. It is a two-step, run-by-hand
 process from the project root:
 
 1. **Execute pending deletes** — for every `actions` row with `action='delete'`
-   and `status='pending'`, move the file to `<trashDir>/<name>` — or `<stem>_<img_id><ext>` if a file with that name is already in trash (older runs used `<img_id>_<name>`),
+   and `status='pending'`, move the file to `<trashDir>/<stem>_<img_id><ext>`
+   (always tagged with the `img_id`, so a re-run after a crash can tell this
+   image's file from another's; older runs used a plain `<name>` or
+   `<img_id>_<name>`, both still recognised),
    set `fotos.status='deleted'` and the action to `done`. Duplicate pending
    deletes for the same image are removed first. If the file is already gone,
    the image is still marked `deleted` and the action is `failed` with
    `file gone` in `info`. Dry run by default:
 
    ```bash
+   PARAMS=params_db.json    # which settings file this batch uses
+
    # 1. dry run: print what would happen, change nothing
-   deno run --allow-read --allow-write recon/executeDeletions.ts
+   deno run --allow-read --allow-write recon/executeDeletions.ts --params=$PARAMS
 
    # 2. real run on the first pending image only; check it before going on
-   deno run --allow-read --allow-write recon/executeDeletions.ts --execute --limit 1
-   
+   deno run --allow-read --allow-write recon/executeDeletions.ts --params=$PARAMS --execute --limit 1
+
    # 3. real run on everything still pending
-   deno run --allow-read --allow-write recon/executeDeletions.ts --execute
+   deno run --allow-read --allow-write recon/executeDeletions.ts --params=$PARAMS --execute
    ```
 
    Safe to re-run after an interruption: a file already in trash under an
@@ -236,8 +255,14 @@ process from the project root:
    still pending, so step 1 has to have cleared them first:
 
    ```bash
-   sqlite3 <dataDir>/<dbName> < recon/notesToActions.sql   # currently ../photos/photos3.db
+   DB=../photos/photos3.db      # dataDir + dbName from $PARAMS
+   sqlite3 -init /dev/null -batch $DB < recon/notesToActions.sql
    ```
+
+   `-init /dev/null -batch` makes the run ignore your personal `~/.sqliterc`,
+   so the entries appended to `recon/recon.log` look the same whoever runs it.
+   Both flags apply to that one command only — your interactive `sqlite3`
+   sessions are unaffected.
 
    One action per image, however many `delete` notes that image has. The
    `info` column is set to the note's **comment, verbatim** — so a note commented
@@ -289,5 +314,5 @@ notes alongside each image's path and status.
 ## Logs
 
 Server activity is written to both the console and `slideshow.log` in the project
-directory. The level is set by `logLevel` in `params.json` and can be changed
-live from the Control Panel.
+directory. The level is set by `logLevel` in your params file and can be
+changed live from the Control Panel.

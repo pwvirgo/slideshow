@@ -5,7 +5,8 @@
 (function() {
   var displayTimeMsInput = document.getElementById('displayTimeMs');
   var logLevelSelect = document.getElementById('logLevel');
-  var sourceSelect = document.getElementById('source');
+  var sourceInput = document.getElementById('source');
+  var paramsFileInput = document.getElementById('paramsFile');
   var dataDirInput = document.getElementById('dataDir');
   var dbNameInput = document.getElementById('dbName');
   var trashDirInput = document.getElementById('trashDir');
@@ -36,10 +37,6 @@
     }
   }
 
-  sourceSelect.addEventListener('change', function() {
-    updateSourceUI(sourceSelect.value);
-  });
-
   // Load current param values
   async function loadParams() {
     // Check URL for displayTimeMs
@@ -55,7 +52,8 @@
         displayTimeMsInput.value = params.displayTimeMs;
       }
       logLevelSelect.value = params.logLevel;
-      sourceSelect.value = params.source || 'folder';
+      paramsFileInput.value = params.paramsFile || '(unknown)';
+      sourceInput.value = params.source || 'folder';
       dataDirInput.value = params.dataDir || '';
       dbNameInput.value = params.dbName || '';
       trashDirInput.value = params.trashDir || '';
@@ -98,14 +96,14 @@
     }
   });
 
-  // Save all params to params.json
+  // Save all params back to the file the server was started with
   saveBtn.addEventListener('click', async function() {
     try {
       var response = await fetch('/api/params', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          source: sourceSelect.value,
+          // source is not sent: it belongs to the params file, not the form.
           dataDir: dataDirInput.value,
           dbName: dbNameInput.value,
           trashDir: trashDirInput.value,

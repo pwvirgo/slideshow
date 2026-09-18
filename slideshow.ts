@@ -1,5 +1,5 @@
 import { logger, LogLevel } from "./lib/logger.ts";
-import { loadParams, Params, dbFile } from "./lib/params.ts";
+import { loadParams, paramsPathFromArgs, noParamsFileMessage, ParamsError, Params, dbFile } from "./lib/params.ts";
 import { scanImages } from "./lib/scanner.ts";
 import { openDb, queryImages, insertAction, insertNote, hasMissingNote, fileExists, getImageInfo, DbImage } from "./lib/db.ts";
 import { DatabaseSync } from "node:sqlite";
@@ -110,8 +110,17 @@ function loadDbImages(params: Params): DbLoadResult {
 async function main(): Promise<void> {
   logger.info("Starting slideshow server...");
 
-  const params = await loadParams();
+  // The file this run is bound to. Everything that reads or writes params
+  // uses this one path, so saving from the Control Panel cannot land in the
+  // other mode's file.
+  const paramsFile = paramsPathFromArgs();
+  if (!paramsFile) {
+    logger.error(noParamsFileMessage());
+    Deno.exit(1);
+  }
+  const params = await loadParams(paramsFile);
   logger.setLogLevel(params.logLevel);
+  logger.info(`Params file: ${paramsFile} (source=${params.source})`);
 
   // Load images based on source
   let folderImagePaths: string[] = [];
@@ -138,9 +147,11 @@ async function main(): Promise<void> {
     logger.info(`Folder source: ${folderImagePaths.length} images loaded`);
   }
 
-  logger.info(`Server starting on http://localhost:${PORT}`);
+  // Logged from onListen, not before: the bind can still fail (port in use),
+  // and "Server starting" followed by an error read as if it had started.
+  const onListen = () => logger.info(`Server listening on http://localhost:${PORT}`);
 
-  Deno.serve({ port: PORT }, async (request: Request): Promise<Response> => {
+  Deno.serve({ port: PORT, onListen }, async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
@@ -165,6 +176,7 @@ async function main(): Promise<void> {
     // Route: GET /api/params - Return current parameters
     if (pathname === "/api/params" && request.method === "GET") {
       return jsonResponse({
+        paramsFile,
         source: params.source,
         imageFolderPath: params.imageFolderPath,
         dataDir: params.dataDir,
@@ -184,11 +196,12 @@ async function main(): Promise<void> {
     if (pathname === "/api/params" && request.method === "POST") {
       try {
         const body = await request.json();
-        const text = await Deno.readTextFile("params.json");
+        const text = await Deno.readTextFile(paramsFile);
         const current = JSON.parse(text);
 
-        // Update fields from the form
-        if (body.source !== undefined) current.source = body.source;
+        // Update fields from the form. `source` is deliberately not editable:
+        // it is what ties this file to the app that may use it, and you choose
+        // it by starting with --params=<file>, not by typing here.
         if (body.dataDir !== undefined) current.dataDir = body.dataDir;
         if (body.dbName !== undefined) current.dbName = body.dbName;
         if (body.trashDir !== undefined) current.trashDir = body.trashDir;
@@ -199,8 +212,8 @@ async function main(): Promise<void> {
         if (body.maxDepth !== undefined) current.maxDepth = body.maxDepth;
         if (body.maxFiles !== undefined) current.maxFiles = body.maxFiles;
 
-        await Deno.writeTextFile("params.json", JSON.stringify(current, null, 2) + "\n");
-        logger.info(`Params saved: source=${current.source}`);
+        await Deno.writeTextFile(paramsFile, JSON.stringify(current, null, 2) + "\n");
+        logger.info(`Params saved to ${paramsFile} (source=${current.source})`);
         return jsonResponse({ ok: true, message: "Saved. Restart server to apply changes." });
       } catch (error) {
         logger.error(`Failed to save params: ${error}`);
@@ -239,24 +252,24 @@ async function main(): Promise<void> {
           if (startupError.includes("unable to open database")) {
             errorInfo = {
               error: `Cannot open database: ${dbFile(params)}`,
-              suggestion: "Check that dataDir and dbName in params.json point to a valid SQLite file.",
+              suggestion: `Check that dataDir and dbName in ${paramsFile} point to a valid SQLite file.`,
             };
           } else if (startupError.includes("syntax error")) {
             errorInfo = {
               error: `SQL syntax error in WHERE or ORDER BY clause`,
-              suggestion: `Fix the whereClause ("${params.whereClause}") or orderBy ("${params.orderBy}") in params.json.`,
+              suggestion: `Fix the whereClause ("${params.whereClause}") or orderBy ("${params.orderBy}") in ${paramsFile}.`,
             };
           } else {
             errorInfo = {
               error: startupError,
-              suggestion: "Check params.json settings and restart the server.",
+              suggestion: `Check the settings in ${paramsFile} and restart the server.`,
             };
           }
         } else if (imageList.length === 0 && dbTotalFromDb === 0) {
           // Empty query result
           errorInfo = {
             error: "No images match the WHERE clause",
-            suggestion: `Adjust the whereClause in params.json. Current: "${params.whereClause || "(none)"}"`,
+            suggestion: `Adjust the whereClause in ${paramsFile}. Current: "${params.whereClause || "(none)"}"`,
           };
         }
 
@@ -264,6 +277,7 @@ async function main(): Promise<void> {
           source: "db",
           images: imageList,
           displayTimeMs: params.displayTimeMs,
+          paramsFile,
           errorInfo,
         });
       } else {
@@ -282,6 +296,7 @@ async function main(): Promise<void> {
           source: "folder",
           images: filteredImages,
           displayTimeMs: params.displayTimeMs,
+          paramsFile,
         });
       }
     }
@@ -394,4 +409,15 @@ async function main(): Promise<void> {
   });
 }
 
-main();
+main().catch((error) => {
+  // Exit 1 on a bad start rather than running on half-loaded settings.
+  // A ParamsError has already said its piece; anything else has not.
+  if (error instanceof Deno.errors.AddrInUse) {
+    // Easy to hit: a server left running in another terminal still holds the
+    // port. Say that instead of dumping the listen stack.
+    logger.error(`Port ${PORT} is already in use — is another slideshow server running?`);
+  } else if (!(error instanceof ParamsError)) {
+    console.error(error);
+  }
+  Deno.exit(1);
+});

@@ -9,10 +9,15 @@ Local image slideshow web app. Deno backend (TypeScript) serves images from eith
 ## Running the App
 
 ```bash
-deno run --allow-read --allow-net --allow-write server.ts
+deno run --allow-read --allow-net --allow-write slideshow.ts [--params=<file>]
 ```
 
 Opens at `http://localhost:8000`. No build step — Deno runs TypeScript directly.
+`--params=<file>` (or `--params <file>`) selects the settings file, defaulting to
+`params.json`; the recon scripts take the same flag. A params file that is
+missing, malformed or invalid is **fatal** at every entry point — one `ERROR`
+line and exit 1, never a fallback to defaults. See `paramsPathFromArgs()`,
+`sourceMismatch()` and `ParamsError` in `lib/params.ts`.
 
 Permissions: `--allow-read` (images, params.json, the SQLite db), `--allow-net` (HTTP server), `--allow-write` (slideshow.log, and `notes` inserts on the db in DB mode).
 
@@ -20,13 +25,13 @@ There is no test framework or linter configured.
 
 ## Architecture
 
-**Backend (`server.ts`)** — Single HTTP server using `Deno.serve()` on port 8000. Routes:
+**Backend (`slideshow.ts`)** — Single HTTP server using `Deno.serve()` on port 8000. Routes:
 - `GET /` → slideshow viewer (`static/slides.html`)
 - `GET /params` → settings page (`static/params.html`)
 - `GET /static/*` → JS, CSS assets
 - `GET /api/images` → JSON image list (optional `?folder=` filter in folder mode)
-- `GET /api/params` → current params.json values
-- `POST /api/params` → write editable params to params.json (takes effect on restart)
+- `GET /api/params` → current params values, plus `paramsFile` (the file this run was started with)
+- `POST /api/params` → write editable params back to **the file the server booted from** (takes effect on restart). `source` is not writable through this route — it is what links a file to the app allowed to use it.
 - `POST /api/logLevel` → change runtime log level
 - `GET /api/imageInfo/<index>` → DB mode: returns id, name, path, dtTaken, dtCreated, bytes, imgSize, camera, md5, `duration`, `missing`, and `displayable` (false for extensions an `<img>` can't render — .avi/.mp4/.nef/.psd…; logs a WARN with img_id and path when so). Side effect: if the file is missing on disk, logs a WARN and inserts one `category='missing'` note (guarded by `hasMissingNote`). Never touches `fotos` or `actions`.
 - `POST /api/notes` → DB mode: insert a row into `notes` (category, rank, comment, img_id)
@@ -34,14 +39,14 @@ There is no test framework or linter configured.
 - `GET /images/*` → serves actual image files (folder mode: relative path under imageFolderPath, DB mode: index into image list → absolute path from the fotos row)
 
 **Libraries (`lib/`):**
-- `params.ts` — loads and validates `params.json` with defaults and type checking. `dbFile(params)` builds the db file path from `dataDir` + `dbName`; use it instead of hard-coding `../photos`.
+- `params.ts` — loads and validates the params file with defaults and type checking. `paramsPathFromArgs()` resolves `--params=<file>` (default `params.json`); `sourceMismatch()` reports when a file's `source` is not the mode a program requires — `recon/findMissing.ts` and `recon/executeDeletions.ts` both abort on it rather than run against a folder-mode file's `dataDir`/`imageFolderPath`. `dbFile(params)` builds the db file path from `dataDir` + `dbName`; use it instead of hard-coding `../photos`.
 - `scanner.ts` — breadth-first image discovery (.jpg, .jpeg, .png, .gif, .webp), sorted by creation date (birthtime), respects maxDepth/maxFiles
-- `db.ts` — SQLite interface using Deno's `node:sqlite`. `queryImages()` takes the db **path** (not a handle) and selects `img_id, path, name` from `fotos` with the optional `whereClause` / `orderBy` fragments and a `maxFiles` limit; it does **not** touch the filesystem. It wraps the query in `WITH fotos AS (SELECT * FROM main.fotos WHERE status = 'ok') …` so the CTE name `fotos` shadows the real table everywhere — the whereClause and any self-reference in it (e.g. a correlated `FROM fotos b` for md5 dedup) only ever see live rows; `status='deleted'` rows are invisible. `getImageInfo()` returns per-image metadata incl. `md5` (selected as `MD5 AS md5`). `insertNote()` / `insertAction()` do parameterized inserts. `hasMissingNote()` checks for an existing `category='missing'` note; `deleteMissingNotes()` clears them when a file comes back (used by `recon/findMissing.ts`). `queryImages()` runs on its own **read-only** connection (`openDbReadOnly()`, `{ readOnly: true }`): SQLite itself refuses any write, which is what makes hand-written params.json fragments safe. `checkSqlFragment()` (formerly `validateSqlFragment()`) no longer blacklists `insert/update/delete/drop/alter/create` — that blacklist also rejected legitimate read-only fragments whose *data* contained one of those words, e.g. `category='delete'`. It now only rejects `;`, because `prepare()` compiles the first statement and silently discards the rest. Deletion execution lives in `recon/executeDeletions.ts` (moves files flat into `trashDir` as `<name>`, or `<stem>_<img_id><ext>` on a name clash — older runs used `<img_id>_<name>`; sets `fotos.status='deleted'`; the user empties trash by hand; aborts the whole run if `imageFolderPath` is absent, but does **not** check each image's own folder — a deliberately deleted folder is a file-gone, not a reason to leave the action pending); `recon/notesToActions.sql` stages `delete` notes as pending actions. `recon/findMissing.ts` scans every `status='ok'` row and keeps `category='missing'` notes in sync with the disk in both directions — flagging files that are gone and deleting the note when a file comes back; it aborts without writing if `imageFolderPath` is absent (unmounted volume), and never touches `fotos`, `actions`, or any file. Promoting a `missing` note to a `delete` note stays manual.
+- `db.ts` — SQLite interface using Deno's `node:sqlite`. `queryImages()` takes the db **path** (not a handle) and selects `img_id, path, name` from `fotos` with the optional `whereClause` / `orderBy` fragments and a `maxFiles` limit; it does **not** touch the filesystem. It wraps the query in `WITH fotos AS (SELECT * FROM main.fotos WHERE status = 'ok') …` so the CTE name `fotos` shadows the real table everywhere — the whereClause and any self-reference in it (e.g. a correlated `FROM fotos b` for md5 dedup) only ever see live rows; `status='deleted'` rows are invisible. `getImageInfo()` returns per-image metadata incl. `md5` (selected as `MD5 AS md5`). `insertNote()` / `insertAction()` do parameterized inserts. `hasMissingNote()` checks for an existing `category='missing'` note; `deleteMissingNotes()` clears them when a file comes back (used by `recon/findMissing.ts`). `queryImages()` runs on its own **read-only** connection (`openDbReadOnly()`, `{ readOnly: true }`): SQLite itself refuses any write, which is what makes hand-written params.json fragments safe. `checkSqlFragment()` (formerly `validateSqlFragment()`) no longer blacklists `insert/update/delete/drop/alter/create` — that blacklist also rejected legitimate read-only fragments whose *data* contained one of those words, e.g. `category='delete'`. It now only rejects `;`, because `prepare()` compiles the first statement and silently discards the rest. Deletion execution lives in `recon/executeDeletions.ts` (moves files flat into `trashDir` as `<stem>_<img_id><ext>` — always tagged, so an interrupted run can prove a file in trash is that image's and finish the db update instead of misreporting a successful delete as `file gone`/`failed`; older runs used a plain `<name>`, or `<img_id>_<name>`, both still recognised; sets `fotos.status='deleted'`; the user empties trash by hand; aborts the whole run if `imageFolderPath` is absent, but does **not** check each image's own folder — a deliberately deleted folder is a file-gone, not a reason to leave the action pending); `recon/notesToActions.sql` stages `delete` notes as pending actions. `recon/findMissing.ts` scans every `status='ok'` row and keeps `category='missing'` notes in sync with the disk in both directions — flagging files that are gone and deleting the note when a file comes back; it aborts without writing if `imageFolderPath` is absent (unmounted volume), and never touches `fotos`, `actions`, or any file. Promoting a `missing` note to a `delete` note stays manual.
 - `logger.ts` — four-level logger (DEBUG/INFO/WARN/ERROR), writes to both console and `slideshow.log`, level changeable at runtime
 
 **Frontend (`static/`):**
 - `app.js` — slideshow controller (IIFE). Manages image cycling, preloading, pause/resume, keyboard controls (Space, Esc, arrows, `I` info overlay, `N` notes). In DB mode: fetches per-image metadata via `/api/imageInfo/<index>` before loading each slide — if that response says `missing: true`, shows a brief "Photo missing — skipped" message for `displayTimeMs` and advances instead of loading a broken image; `displayable: false` does the same with a "Can't display this file" panel showing img_id/name/path/size/duration. The `I` and `N` keys also work on the load-error box (the notes-form branch is checked before the error-state branch in the keydown handler, so typing in the form isn't eaten by the retry keys). Shows a draggable Notes form for annotating images, saved to the `notes` table via `POST /api/notes`. The `I` info overlay shows IMG_ID + MD5, name, camera, path, dates, size.
-- `params.js` — settings page controller (IIFE). Loads/displays params, controls log level via API, toggles UI between folder and DB source modes.
+- `params.js` — settings page controller (IIFE). Loads/displays params, controls log level via API, toggles UI between folder and DB source modes. The params file name and `source` are shown read-only (`.input[readonly]`) and `source` is not sent on save — you pick the mode by picking the file at startup.
 - `styles.css` — dark theme, fullscreen image display with `object-fit: contain`
 
 ## Configuration

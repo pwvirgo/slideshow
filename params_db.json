@@ -5,7 +5,7 @@
   "dbName": "photos3.db",
   "trashDir": "../photos/trash",
   "tableName": "fotos",
-  "whereClause": "path like '%Dropbox_2021_imac%'",
+  "whereClause": "path like '%photos'",
   "whereClause1": "1=1",
   "comment1": "this line is ignored",
   "orderBy": "dt_taken, path, name, md5",

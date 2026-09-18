@@ -1,0 +1,8 @@
+{
+    "source": "folder",
+    "imageFolderPath": "../photos/images3",
+    "displayTimeMs": 5000,
+    "maxDepth": 3,
+    "maxFiles": 200,
+    "logLevel": "INFO"
+  }

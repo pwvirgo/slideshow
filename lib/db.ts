@@ -24,7 +24,7 @@ export interface DbImage {
   name: string;
 }
 
-// Sanity-check a params.json SQL fragment. This is NOT what stops a fragment
+// Sanity-check a SQL fragment from the params file. This is NOT what stops a fragment
 // modifying the database — queryImages() runs it on a read-only connection
 // (openDbReadOnly), so SQLite itself refuses any write. Do not re-add a
 // keyword blacklist here: it used to reject `insert/update/delete/drop/alter/
@@ -56,7 +56,7 @@ export function openDb(dbPath: string): DatabaseSync {
   return db;
 }
 
-// Read-only handle, used for queries built from params.json fragments. SQLite
+// Read-only handle, used for queries built from params-file fragments. SQLite
 // refuses every write on this connection ("attempt to write a readonly
 // database"), which is the real guard around hand-written SQL. No foreign_keys
 // pragma: that setting only affects writes.
@@ -85,12 +85,12 @@ export interface QueryResult {
 
 // Queries the fotos table only — does not touch the filesystem or mutate
 // catalog state. Missing-file detection is lazy, per image, when it's actually
-// requested for display (server.ts /api/imageInfo), or in bulk via
+// requested for display (slideshow.ts /api/imageInfo), or in bulk via
 // recon/findMissing.ts — never here. See design/missing_files.md.
 //
 // Takes the db *path*, not a handle, and opens its own read-only connection for
 // the duration of the query: the whereClause/orderBy fragments come from
-// params.json, and this way there is no writable handle for a caller to pass in
+// the params file, and this way there is no writable handle for a caller to pass in
 // by mistake. The caller keeps its own openDb() handle for notes/actions.
 export function queryImages(dbPath: string, whereClause: string,
    maxFiles: number, orderBy = ""): QueryResult {
@@ -101,7 +101,7 @@ export function queryImages(dbPath: string, whereClause: string,
   // `status='deleted'` rows are soft-deleted: the app treats them as if they
   // were gone from the table (this replaced an older scheme that physically
   // moved rows into a separate `deleted` table). A CTE named `fotos` shadows
-  // the real table for the entire query, so the params.json whereClause — and
+  // the real table for the entire query, so the params whereClause — and
   // any self-reference it makes, e.g. a correlated `FROM fotos b` for md5
   // dedup — only ever sees live rows, and needs no `status` filter of its own.
   const where = whereClause.trim() === "" ? "" : `WHERE ${whereClause}`;
